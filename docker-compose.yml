@@ -1,0 +1,72 @@
+# ============================================================
+# docker-compose.yml
+# Para pruebas LOCALES unicamente (no se usa en Render).
+# Levanta PHP + Flask + PostgreSQL en tu maquina.
+#
+# Comandos:
+#   docker compose up -d        -> Inicia todo en segundo plano
+#   docker compose down         -> Detiene y elimina los contenedores
+#   docker compose logs -f      -> Ver logs en tiempo real
+# ============================================================
+
+# Esto ya no se usa porque las versiones recientes lo detectan solo
+# version: "3.8"
+
+services:
+
+  # ---------------------------------------------------------
+  # 1. Base de datos PostgreSQL
+  # ---------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres_videojuegos
+    environment:
+      POSTGRES_DB: videojuegos_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      # Ejecuta el script SQL automaticamente al iniciar
+      - ./app_php/sql/script.sql:/docker-entrypoint-initdb.d/script.sql
+      # Persiste los datos aunque apagues el contenedor
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d videojuegos_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------
+  # 2. Aplicacion PHP con Apache
+  # ---------------------------------------------------------
+  php:
+    build: ./app_php
+    container_name: php_videojuegos
+    ports:
+      - "3000:80"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: videojuegos_db
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      API_FLASK_URL: http://flask:10000
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ---------------------------------------------------------
+  # 3. API Flask (Python)
+  # ---------------------------------------------------------
+  flask:
+    build: ./app_flask
+    container_name: flask_videojuegos
+    ports:
+      - "5000:10000"
+    environment:
+      MONGO_URI: mongodb+srv://brayan_user:OowrgD7GQvC2j4c1@cluster0.trhpoq2.mongodb.net/?retryWrites=true&w=majority
+      PORT: 10000
+
+volumes:
+  pgdata:
