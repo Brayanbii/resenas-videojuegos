@@ -1,0 +1,422 @@
+{
+  "info": {
+    "name": "Reseñas Videojuegos - Pruebas de Integracion PHP-Flask",
+    "description": "Coleccion de pruebas de integracion entre la aplicacion PHP (PostgreSQL) y el servicio Flask (MongoDB).\n\nEsta coleccion contiene las pruebas para verificar el flujo completo del sistema.\n\nPasos para usar:\n1. Importa este archivo en Postman\n2. Configura las variables de entorno (URL_PHP y URL_FLASK)\n3. Ejecuta las peticiones en orden",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "estudiante"
+  },
+  "variable": [
+    {
+      "key": "URL_PHP",
+      "value": "http://localhost:3000",
+      "type": "string",
+      "description": "URL de la aplicacion PHP (Render o localhost)"
+    },
+    {
+      "key": "URL_FLASK",
+      "value": "http://localhost:5000",
+      "type": "string",
+      "description": "URL de la API Flask (Railway/Render o localhost)"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Verificar API Flask Activa",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Prueba: Verifica que la API Flask responde correctamente",
+              "pm.test('Status 200 - API funcionando', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Respuesta contiene mensaje de bienvenida', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.mensaje).to.include('funcionando');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{URL_FLASK}}/",
+          "host": ["{{URL_FLASK}}"],
+          "path": [""]
+        },
+        "description": "Verifica que la API Flask esta en ejecucion respondiendo a la ruta raiz."
+      }
+    },
+    {
+      "name": "2. Registrar Videojuego (PHP -> PostgreSQL)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Prueba: Verifica que el registro de videojuego funciona",
+              "pm.test('Status 200 - Videojuego registrado', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Mensaje de exito en el HTML', function () {",
+              "    pm.expect(pm.response.text()).to.include('registrado correctamente');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded"
+          }
+        ],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {"key": "nombre", "value": "Prueba Postman - Videojuego", "type": "text"},
+            {"key": "genero", "value": "Aventura", "type": "text"},
+            {"key": "plataforma", "value": "PC", "type": "text"},
+            {"key": "descripcion", "value": "Videojuego registrado desde Postman para pruebas de integracion.", "type": "text"},
+            {"key": "fecha_lanzamiento", "value": "2024-03-15", "type": "text"}
+          ]
+        },
+        "url": {
+          "raw": "{{URL_PHP}}/registrar_videojuego.php",
+          "host": ["{{URL_PHP}}"],
+          "path": ["registrar_videojuego.php"]
+        },
+        "description": "Prueba de registro de videojuego en PostgreSQL a traves de la aplicacion PHP."
+      }
+    },
+    {
+      "name": "3. Registrar Reseña (PHP -> PostgreSQL + Flask -> MongoDB)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Prueba: Verifica el flujo completo PHP -> PostgreSQL + Flask -> MongoDB",
+              "pm.test('Status 200 - Reseña registrada', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Mensaje de exito y envio a API', function () {",
+              "    var texto = pm.response.text();",
+              "    pm.expect(texto).to.include('correctamente');",
+              "    pm.expect(texto).to.include('API');",
+              "});",
+              "",
+              "// Verificamos que no haya errores de validacion",
+              "pm.test('Sin errores de validacion en el HTML', function () {",
+              "    pm.expect(pm.response.text()).to.not.include('is-invalid');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded"
+          }
+        ],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {"key": "videojuego_id", "value": "1", "type": "text"},
+            {"key": "nombre_usuario", "value": "TesterPostman", "type": "text"},
+            {"key": "calificacion", "value": "5", "type": "text"},
+            {"key": "comentario", "value": "Reseña de prueba de integracion desde Postman. Excelente juego.", "type": "text"}
+          ]
+        },
+        "url": {
+          "raw": "{{URL_PHP}}/registrar_resena.php",
+          "host": ["{{URL_PHP}}"],
+          "path": ["registrar_resena.php"]
+        },
+        "description": "Prueba de integracion completa: PHP registra la reseña en PostgreSQL y envia datos a la API Flask que actualiza MongoDB."
+      }
+    },
+    {
+      "name": "4. Ver Catalogo (PHP -> PostgreSQL)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Prueba: Verifica que el catalogo carga correctamente",
+              "pm.test('Status 200 - Catalogo cargado', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Catalogo contiene videojuegos', function () {",
+              "    var texto = pm.response.text();",
+              "    pm.expect(texto).to.include('Catálogo de Videojuegos');",
+              "    pm.expect(texto).to.include('card-header');",
+              "});",
+              "",
+              "pm.test('Muestra calificaciones con estrellas', function () {",
+              "    var texto = pm.response.text();",
+              "    pm.expect(texto).to.include('promedio');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{URL_PHP}}/catalogo.php",
+          "host": ["{{URL_PHP}}"],
+          "path": ["catalogo.php"]
+        },
+        "description": "Consulta el catalogo publico con todos los videojuegos y sus reseñas desde PostgreSQL."
+      }
+    },
+    {
+      "name": "5. POST /api/videojuegos (Flask -> MongoDB)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Prueba: Verifica el endpoint POST de la API Flask",
+              "pm.test('Status 201 - Datos recibidos por la API', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('Respuesta JSON con estado ok', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.estado).to.eql('ok');",
+              "    pm.expect(jsonData.videojuego_id).to.exist;",
+              "});",
+              "",
+              "pm.test('Mensaje de confirmacion incluido', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.mensaje).to.be.a('string');",
+              "    pm.expect(jsonData.mensaje.length).to.be.above(5);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"videojuego_id\": 1,\n  \"calificacion\": 4,\n  \"nombre_videojuego\": \"Prueba Postman Directa\"\n}"
+        },
+        "url": {
+          "raw": "{{URL_FLASK}}/api/videojuegos",
+          "host": ["{{URL_FLASK}}"],
+          "path": ["api", "videojuegos"]
+        },
+        "description": "Prueba directa del endpoint POST de la API Flask que actualiza estadisticas en MongoDB."
+      }
+    },
+    {
+      "name": "6. GET /api/estadisticas (Flask -> MongoDB)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Prueba: Verifica que las estadisticas se devuelven correctamente",
+              "pm.test('Status 200 - Estadisticas obtenidas', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Contiene campos de estadisticas requeridos', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('total_videojuegos');",
+              "    pm.expect(jsonData).to.have.property('total_resenas');",
+              "    pm.expect(jsonData).to.have.property('promedio_general');",
+              "    pm.expect(jsonData).to.have.property('mejor_calificado');",
+              "    pm.expect(jsonData).to.have.property('mas_resenado');",
+              "});",
+              "",
+              "pm.test('Valores estadisticos son numeros validos', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.total_videojuegos).to.be.at.least(0);",
+              "    pm.expect(jsonData.total_resenas).to.be.at.least(0);",
+              "    pm.expect(jsonData.promedio_general).to.be.within(0, 5);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{URL_FLASK}}/api/estadisticas",
+          "host": ["{{URL_FLASK}}"],
+          "path": ["api", "estadisticas"]
+        },
+        "description": "Prueba directa del endpoint GET de estadisticas que consulta datos agregados desde MongoDB."
+      }
+    },
+    {
+      "name": "7. GET /api/mejores-videojuegos (Flask -> MongoDB)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Prueba: Verifica el ranking de mejores videojuegos",
+              "pm.test('Status 200 - Ranking obtenido', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Respuesta es un array de videojuegos', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.be.an('array');",
+              "});",
+              "",
+              "pm.test('Cada videojuego tiene los campos requeridos', function () {",
+              "    var jsonData = pm.response.json();",
+              "    if (jsonData.length > 0) {",
+              "        pm.expect(jsonData[0]).to.have.property('nombre_videojuego');",
+              "        pm.expect(jsonData[0]).to.have.property('promedio_calificacion');",
+              "        pm.expect(jsonData[0]).to.have.property('total_resenas');",
+              "        pm.expect(jsonData[0]).to.have.property('videojuego_id');",
+              "        // Verificar que el promedio este en rango valido",
+              "        pm.expect(jsonData[0].promedio_calificacion).to.be.within(0, 5);",
+              "    }",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{URL_FLASK}}/api/mejores-videojuegos",
+          "host": ["{{URL_FLASK}}"],
+          "path": ["api", "mejores-videojuegos"]
+        },
+        "description": "Prueba directa del endpoint GET de mejores videojuegos ordenados por promedio de calificacion desde MongoDB."
+      }
+    },
+    {
+      "name": "8. Validaciones - Campos Vacios (PHP)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Prueba: Verifica que las validaciones del servidor funcionan",
+              "pm.test('Status 200 - El formulario se recarga con errores', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Muestra mensajes de validacion (is-invalid)', function () {",
+              "    var texto = pm.response.text();",
+              "    pm.expect(texto).to.include('is-invalid');",
+              "    pm.expect(texto).to.include('obligatorio');",
+              "});",
+              "",
+              "pm.test('No se registra el videojuego (datos vacios)', function () {",
+              "    var texto = pm.response.text();",
+              "    pm.expect(texto).to.not.include('registrado correctamente');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded"
+          }
+        ],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {"key": "nombre", "value": "", "type": "text"},
+            {"key": "genero", "value": "", "type": "text"},
+            {"key": "plataforma", "value": "", "type": "text"},
+            {"key": "descripcion", "value": "", "type": "text"},
+            {"key": "fecha_lanzamiento", "value": "", "type": "text"}
+          ]
+        },
+        "url": {
+          "raw": "{{URL_PHP}}/registrar_videojuego.php",
+          "host": ["{{URL_PHP}}"],
+          "path": ["registrar_videojuego.php"]
+        },
+        "description": "Prueba de validaciones: envia un formulario vacio y verifica que se muestren los errores de validacion."
+      }
+    },
+    {
+      "name": "9. Validacion - API Flask sin datos (JSON vacio)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Prueba: Verifica que la API rechaza peticiones sin datos",
+              "pm.test('Status 400 - Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "",
+              "pm.test('Mensaje de error en la respuesta', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.error).to.exist;",
+              "    pm.expect(jsonData.error).to.be.a('string');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        },
+        "url": {
+          "raw": "{{URL_FLASK}}/api/videojuegos",
+          "host": ["{{URL_FLASK}}"],
+          "path": ["api", "videojuegos"]
+        },
+        "description": "Prueba de validacion en la API Flask: envia JSON vacio y verifica que devuelva error 400."
+      }
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+# ============================================================
+# .gitignore
+# Archivos y carpetas que NO se deben subir a GitHub
+# ============================================================
+
+# Archivos de configuracion local
+.env
+
+# Dependencias de Python (entorno virtual)
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+
+# Dependencias de Node (si se usaran)
+node_modules/
+
+# Archivos de sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Archivos de IDE
+.vscode/
+.idea/
+
+# Archivos de logs
+*.log
+
+# Archivos temporales
+*.tmp
+*.swp
+~*

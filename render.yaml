@@ -1,0 +1,84 @@
+# ============================================================
+# render.yaml
+# Archivo de configuracion para Render Blueprint.
+# Permite desplegar todos los servicios del proyecto de una vez.
+#
+# Instrucciones:
+# 1. Sube TODO el proyecto a un repositorio en GitHub
+# 2. En Render Dashboard -> Blueprints -> Connect Repository
+# 3. Render detectara este archivo y creara los 3 servicios
+# ============================================================
+
+services:
+  # --------------------------------------------------------
+  # SERVICIO 1: Base de datos PostgreSQL
+  # Render la crea y administra automaticamente
+  # --------------------------------------------------------
+  - type: pgsql
+    name: videojuegos-db          # Nombre de la BD en Render
+    plan: free                    # Plan gratuito
+    databaseName: videojuegos_db  # Nombre de la base de datos
+    # Render genera automaticamente:
+    #   DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
+    # Las inyecta como variables de entorno en el servicio PHP
+
+  # --------------------------------------------------------
+  # SERVICIO 2: Aplicacion Web PHP
+  # Despliega la aplicacion principal con Apache + PHP
+  # --------------------------------------------------------
+  - type: web
+    name: resenas-php              # Nombre del servicio en Render
+    runtime: php                   # Usa el runtime nativo de PHP (Apache)
+    plan: free                     # Plan gratuito
+    rootDir: app_php               # Directorio raiz donde esta el codigo PHP
+    buildCommand: ""               # No necesita build (PHP puro)
+    # Las variables de entorno las inyecta Render automaticamente desde la BD
+    # y se configuran manualmente las de la API Flask
+    envVars:
+      # Estas 5 variables las genera Render automaticamente al vincular la BD
+      # pero las declaramos aqui para referencia:
+      - key: DB_HOST
+        fromDatabase:
+          name: videojuegos-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: videojuegos-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: videojuegos-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: videojuegos-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: videojuegos-db
+          property: password
+      # Esta variable debes ACTUALIZARLA manualmente despues de crear el servicio Flask
+      # porque la URL del servicio Flask no se conoce hasta que se despliega
+      - key: API_FLASK_URL
+        value: "https://resenas-flask.onrender.com"
+        comment: "CAMBIA ESTO por la URL real de tu servicio Flask despues del despliegue"
+
+  # --------------------------------------------------------
+  # SERVICIO 3: API Flask (Python)
+  # Despliega el servicio de analitica
+  # --------------------------------------------------------
+  - type: web
+    name: resenas-flask            # Nombre del servicio en Render
+    runtime: python                # Usa runtime Python
+    plan: free                     # Plan gratuito
+    rootDir: app_flask             # Directorio raiz del codigo Flask
+    buildCommand: "pip install -r requirements.txt"  # Instala dependencias
+    startCommand: "gunicorn app:aplicacion --bind 0.0.0.0:$PORT"  # Inicia con gunicorn
+    envVars:
+      # URI de MongoDB Atlas - Cluster: cluster0.trhpoq2.mongodb.net
+      # Base de datos: analitica_videojuegos (se crea automaticamente)
+      - key: MONGO_URI
+        value: "mongodb+srv://brayan_user:OowrgD7GQvC2j4c1@cluster0.trhpoq2.mongodb.net/?retryWrites=true&w=majority"
+      # Puerto lo asigna Render automaticamente
+      - key: PORT
+        value: "10000"

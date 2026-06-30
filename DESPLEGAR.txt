@@ -1,0 +1,230 @@
+=====================================================================
+  GUIA DE DESPLIEGUE - PROYECTO RESEÑAS DE VIDEOJUEGOS
+  PHP (PostgreSQL) + Flask (MongoDB) en Render
+=====================================================================
+
+INDICE:
+  PARTE A: Preparacion previa (MongoDB Atlas + GitHub)
+  PARTE B: Despliegue automatico con Render Blueprint
+  PARTE C: Configuracion manual de variables de entorno
+  PARTE D: Inicializar base de datos PostgreSQL
+  PARTE E: Verificar que todo funciona
+  PARTE F: Problemas comunes y soluciones
+
+
+=====================================================================
+PARTE A: PREPARACION PREVIA
+=====================================================================
+
+A.1 - CREAR CUENTA EN MONGODB ATLAS (GRATIS)
+-------------------------------------------------
+  1. Ve a: https://www.mongodb.com/atlas/database
+  2. Crea una cuenta gratis o inicia sesion
+  3. Crea un cluster gratuito (Shared/M0)
+     - Provider: AWS
+     - Region: la mas cercana (us-east-1 por ejemplo)
+     - Cluster name: analitica-videojuegos
+  4. Espera a que se cree el cluster (2-5 minutos)
+  5. En "Security" -> "Database Access":
+     - Crea un usuario: admin
+     - Password: algo seguro (guarda esto)
+     - Privileges: "Read and write to any database"
+  6. En "Security" -> "Network Access":
+     - Click "Add IP Address"
+     - Click "Allow Access from Anywhere" (0.0.0.0/0)
+     - Confirma
+  7. Ve a "Database" -> Click "Connect" en tu cluster
+     - Selecciona "Connect your application"
+     - Copia la URI de conexion (se ve asi):
+       mongodb+srv://admin:<password>@cluster0.xxxxx.mongodb.net/
+     - GUARDA ESTA URI, la necesitaras despues
+     - Reemplaza <password> con la contraseña que pusiste
+
+A.2 - SUBIR EL PROYECTO A GITHUB
+-------------------------------------------------
+  1. Crea un repositorio NUEVO en GitHub (ej: resenas-videojuegos)
+     NO lo inicialices con README (dejalo vacio)
+  2. Abre una terminal en la carpeta del proyecto:
+     cd C:\Users\Brayan\Documents\Plan_mejora
+
+  3. Ejecuta estos comandos uno por uno:
+     git init
+     git add .
+     git commit -m "Proyecto completo - PHP + Flask + pruebas"
+     git branch -M main
+     git remote add origin https://github.com/TU_USUARIO/resenas-videojuegos.git
+     git push -u origin main
+
+
+=====================================================================
+PARTE B: DESPLIEGUE AUTOMATICO CON RENDER BLUEPRINT
+=====================================================================
+
+  1. Ve a: https://dashboard.render.com/
+  2. Crea una cuenta o inicia sesion (puedes usar tu cuenta de GitHub)
+  3. En el Dashboard, click en "New" -> "Blueprint"
+  4. Conecta tu cuenta de GitHub si no lo has hecho
+  5. Selecciona el repositorio "resenas-videojuegos"
+  6. Render detectara automaticamente el archivo render.yaml
+  7. Revisa los 3 servicios que va a crear:
+     - videojuegos-db (PostgreSQL)
+     - resenas-php (PHP Web Service)
+     - resenas-flask (Python Web Service)
+
+  8. IMPORTANTE: Antes de dar click en "Apply", necesitas configurar
+     la variable MONGO_URI del servicio Flask.
+     
+     En la seccion del servicio "resenas-flask", busca:
+       MONGO_URI: mongodb+srv://TU_USUARIO:TU_PASSWORD@tu-cluster.mongodb.net/
+     
+     CAMBIALA por tu URI real de MongoDB Atlas (la que guardaste en A.1)
+
+  9. Click en "Apply" y espera...
+     El despliegue toma entre 5 y 10 minutos la primera vez.
+
+  10. Anota las URLs que Render te da:
+      - PHP:  https://resenas-php.onrender.com
+      - Flask: https://resenas-flask.onrender.com
+
+
+=====================================================================
+PARTE C: CONFIGURACION DE VARIABLES DE ENTORNO
+=====================================================================
+
+Despues del despliegue, necesitas conectar el PHP con el Flask:
+
+  1. En Render Dashboard, ve al servicio "resenas-php"
+  2. Ve a la pestaña "Environment"
+  3. Busca la variable API_FLASK_URL
+  4. Cambia su valor por la URL REAL de tu servicio Flask:
+     https://resenas-flask.onrender.com
+  5. Click "Save Changes"
+  6. Render reiniciara el servicio PHP automaticamente
+
+
+=====================================================================
+PARTE D: INICIALIZAR BASE DE DATOS POSTGRESQL
+=====================================================================
+
+La base de datos PostgreSQL se creo automaticamente, pero las TABLAS
+estan vacias. Hay que ejecutar el script SQL.
+
+OPCION 1: Usando el script setup_db.php (recomendado)
+-------------------------------------------------
+  1. Abre tu navegador y ve a:
+     https://resenas-php.onrender.com/setup_db.php
+  2. Veras el log de ejecucion del script SQL
+  3. Deberias ver: "Inicializacion completada."
+  4. IMPORTANTE: Elimina setup_db.php del proyecto o agregalo a
+     .gitignore para que no quede publico.
+
+OPCION 2: Usando pgAdmin o psql (manual)
+-------------------------------------------------
+  1. En Render Dashboard -> servicio "videojuegos-db"
+  2. Copia los datos de conexion (Host, Port, Database, User, Password)
+  3. Conectate con pgAdmin o psql
+  4. Ejecuta el contenido de app_php/sql/script.sql
+
+
+=====================================================================
+PARTE E: VERIFICAR QUE TODO FUNCIONA
+=====================================================================
+
+Prueba cada parte del sistema:
+
+  1. ABRE LA APLICACION PHP:
+     https://resenas-php.onrender.com/
+     Debes ver la pagina principal con el menu y las tarjetas.
+
+  2. REGISTRA UN VIDEOJUEGO:
+     https://resenas-php.onrender.com/registrar_videojuego.php
+     Llena el formulario y enviarlo. Debe mostrar "registrado correctamente".
+
+  3. REGISTRA UNA RESEÑA:
+     https://resenas-php.onrender.com/registrar_resena.php
+     Esto dispara el flujo: PHP -> PostgreSQL + PHP -> Flask -> MongoDB
+
+  4. VER CATALOGO:
+     https://resenas-php.onrender.com/catalogo.php
+
+  5. VER ESTADISTICAS (conexion PHP-Flask):
+     https://resenas-php.onrender.com/estadisticas.php
+     Debe mostrar datos desde la API Flask.
+
+  6. PRUEBA DIRECTA A LA API FLASK:
+     https://resenas-flask.onrender.com/
+     Debe mostrar: {"mensaje": "API de Analitica de Videojuegos funcionando", ...}
+
+     https://resenas-flask.onrender.com/api/estadisticas
+     Debe mostrar las estadisticas en JSON.
+
+     https://resenas-flask.onrender.com/api/mejores-videojuegos
+     Debe mostrar el ranking.
+
+
+=====================================================================
+PARTE F: PROBLEMAS COMUNES Y SOLUCIONES
+=====================================================================
+
+PROBLEMA: "Error de conexion a la base de datos" en PHP
+SOLUCION: Revisa que las variables DB_HOST, DB_PORT, etc esten
+          correctas en Environment del servicio PHP en Render.
+
+PROBLEMA: La pagina de estadisticas muestra "No se pudo conectar"
+SOLUCION: 
+  1. Verifica que API_FLASK_URL tenga la URL correcta del Flask
+  2. Verifica que el servicio Flask este corriendo (sin errores)
+  3. Revisa los logs del servicio Flask en Render
+
+PROBLEMA: La API Flask no arranca (error en deploy)
+SOLUCION:
+  1. Ve a los logs del servicio Flask en Render
+  2. Si dice "connection refused" de MongoDB, revisa:
+     - La URI de MongoDB Atlas es correcta
+     - El usuario y password de MongoDB son correctos
+     - La IP 0.0.0.0/0 esta en Network Access de MongoDB Atlas
+
+PROBLEMA: Sale "Application Error" en Render
+SOLUCION:
+  1. Ve a los logs del servicio con error
+  2. Si el PHP falla, revisa que no haya errores de sintaxis
+  3. Si el Flask falla, revisa requirements.txt y MONGO_URI
+
+PROBLEMA: El servicio gratuito de Render "se duerme"
+SOLUCION:
+  Los servicios gratuitos de Render se apagan despues de 15 minutos
+  de inactividad. La primera peticion despues de inactividad tarda
+  30-60 segundos en responder. Para el trabajo academico es normal.
+  Si necesitas que no se duerma, puedes usar un servicio como
+  https://uptimerobot.com para hacer ping cada 5 minutos.
+
+
+=====================================================================
+RESUMEN DE URLs (para entregar en el trabajo)
+=====================================================================
+
+  Aplicacion PHP (Render):
+  https://resenas-php.onrender.com
+
+  API Flask (Render):
+  https://resenas-flask.onrender.com
+
+  Base de datos PostgreSQL (Render):
+  [Host y credenciales en Dashboard de Render]
+
+  Base de datos MongoDB Atlas:
+  [URI en Dashboard de MongoDB Atlas]
+
+
+=====================================================================
+ARCHIVOS IMPORTANTES DEL PROYECTO
+=====================================================================
+
+  render.yaml          -> Configuracion de despliegue en Render
+  app_php/             -> Aplicacion PHP completa
+  app_php/sql/         -> Script SQL de creacion de tablas
+  app_php/setup_db.php -> Script para inicializar tablas
+  app_flask/           -> API Flask completa
+  pruebas/             -> Pruebas Selenium
+  pruebas_carga/       -> Pruebas Locust
+  postman/             -> Coleccion Postman
