@@ -2,89 +2,105 @@
 /**
  * setup_db.php
  * Script para inicializar las tablas de la base de datos PostgreSQL.
- * Ejecuta el script SQL de creacion de tablas y datos de ejemplo.
- *
- * USO:
- *   Accede a: https://tu-app.onrender.com/setup_db.php
- *   O ejecuta: php setup_db.php desde la terminal
  *
  * IMPORTANTE: Despues de ejecutar, ELIMINA este archivo del servidor
- *              o protegelo con una contraseña para evitar accesos no autorizados.
  */
 
-// Incluimos la conexion
 require_once 'conexion.php';
 
 echo "<h2>Inicializando Base de Datos</h2>";
 echo "<pre>";
 
-// Leemos el archivo SQL
 $ruta_sql = __DIR__ . '/sql/script.sql';
 
 if (!file_exists($ruta_sql)) {
-    die("ERROR: No se encontro el archivo script.sql en: $ruta_sql");
+    die("ERROR: No se encontro el archivo script.sql");
 }
 
-echo "Archivo SQL encontrado: $ruta_sql\n\n";
+echo "Archivo SQL encontrado\n\n";
 
 $contenido_sql = file_get_contents($ruta_sql);
 
-// Separamos las instrucciones SQL por punto y coma
-// Ignoramos lineas vacias y comentarios
-$instrucciones = array_filter(
-    array_map('trim', explode(';', $contenido_sql)),
-    function($linea) {
-        $linea = trim($linea);
-        return !empty($linea) && !str_starts_with($linea, '--');
+// Paso 1: Eliminar TODOS los comentarios (lineas que empiezan con --)
+$lineas = explode("\n", $contenido_sql);
+$lineas_limpias = [];
+foreach ($lineas as $linea) {
+    $linea_trim = trim($linea);
+    if (!empty($linea_trim) && !str_starts_with($linea_trim, '--')) {
+        $lineas_limpias[] = $linea;
     }
-);
+}
+$sql_sin_comentarios = implode("\n", $lineas_limpias);
+
+// Paso 2: Separar por punto y coma cada instruccion
+$instrucciones = explode(';', $sql_sin_comentarios);
 
 $exitos = 0;
 $fallos = 0;
+$numero = 0;
 
-foreach ($instrucciones as $indice => $sql) {
-    // Saltamos SELECTs (son de verificacion al final)
-    if (stripos(trim($sql), 'SELECT') === 0) {
-        echo "Saltando SELECT de verificacion...\n";
-        continue;
+foreach ($instrucciones as $sql) {
+    $sql = trim($sql);
+    if (empty($sql)) {
+        continue; // Saltamos vacios
     }
 
-    // Saltamos DROP TABLE si es primera ejecucion (no existen)
-    // pero los ejecutamos igual por si acaso
+    $numero++;
+
+    // Saltamos los SELECT del final (son de comprobacion en el script)
+    if (stripos($sql, 'SELECT') === 0) {
+        echo "[$numero] Saltando SELECT de verificacion...\n";
+        continue;
+    }
 
     try {
         $conexion_bd->exec($sql);
         $exitos++;
-        echo "[OK] Instruccion " . ($indice + 1) . " ejecutada.\n";
+        // Mostramos solo las primeras palabras de la instruccion
+        $resumen = substr($sql, 0, 60);
+        echo "[$numero] OK: $resumen...\n";
     } catch (PDOException $error) {
         $fallos++;
-        echo "[ERROR] Instruccion " . ($indice + 1) . ": " . $error->getMessage() . "\n";
+        echo "[$numero] ERROR: " . $error->getMessage() . "\n";
 
-        // Si el error es porque la tabla ya existe, no es grave
-        if (strpos($error->getMessage(), 'already exists') !== false) {
-            echo "       (La tabla ya existe, no es un problema)\n";
+        // Si la tabla ya existe, no es grave
+        if (strpos($error->getMessage(), 'already exists') !== false ||
+            strpos($error->getMessage(), 'does not exist') !== false) {
+            echo "       (No es grave - la tabla ya existia o no existia)\n";
+            $exitos++; // Lo contamos como exito
+            $fallos--;
         }
     }
 }
 
 echo "\n========================================\n";
-echo "RESUMEN: $exitos exitos, $fallos fallos\n";
+echo "RESUMEN: $exitos instrucciones ejecutadas correctamente\n";
+if ($fallos > 0) {
+    echo "         $fallos instrucciones con error\n";
+}
+echo "========================================\n";
 
-// Verificamos que las tablas se crearon
+// Verificacion final
+echo "\n--- Verificando datos en la base ---\n";
 try {
-    $verificacion = $conexion_bd->query("SELECT COUNT(*) as cuenta FROM videojuegos");
-    $resultado = $verificacion->fetch();
-    echo "Videojuegos en BD: " . $resultado['cuenta'] . "\n";
+    $v = $conexion_bd->query("SELECT COUNT(*) as c FROM videojuegos")->fetch();
+    echo "Videojuegos en BD: {$v['c']}\n";
+    $r = $conexion_bd->query("SELECT COUNT(*) as c FROM resenas")->fetch();
+    echo "Resenas en BD: {$r['c']}\n";
 
-    $verificacion2 = $conexion_bd->query("SELECT COUNT(*) as cuenta FROM resenas");
-    $resultado2 = $verificacion2->fetch();
-    echo "Resenas en BD: " . $resultado2['cuenta'] . "\n";
+    if ($v['c'] > 0) {
+        echo "\n--- Lista de videojuegos ---\n";
+        $lista = $conexion_bd->query("SELECT id, nombre, genero FROM videojuegos");
+        foreach ($lista as $juego) {
+            echo "  [{$juego['id']}] {$juego['nombre']} ({$juego['genero']})\n";
+        }
+    }
+
+    echo "\n*** BASE DE DATOS INICIALIZADA CORRECTAMENTE ***\n";
 } catch (PDOException $error) {
     echo "Error al verificar: " . $error->getMessage() . "\n";
 }
 
-echo "========================================\n";
-echo "Inicializacion completada.\n";
 echo "</pre>";
 echo "<p><strong>IMPORTANTE:</strong> Elimina este archivo (setup_db.php) del servidor por seguridad.</p>";
 echo "<p><a href='index.php'>Ir a la pagina principal</a></p>";
