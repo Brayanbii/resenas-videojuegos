@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Reseñas Videojuegos - Pruebas de Integracion PHP-Flask",
-    "description": "Coleccion de pruebas de integracion entre la aplicacion PHP (PostgreSQL) y el servicio Flask (MongoDB).\n\nEsta coleccion contiene las pruebas para verificar el flujo completo del sistema.\n\nPasos para usar:\n1. Importa este archivo en Postman\n2. Configura las variables de entorno (URL_PHP y URL_FLASK)\n3. Ejecuta las peticiones en orden",
+    "description": "Coleccion de pruebas de integracion entre PHP (PostgreSQL) y Flask (MongoDB).\n\nURLs ya configuradas:\n- PHP: https://resenas-php.onrender.com\n- Flask: https://resenas-flask.onrender.com\n\nCOMO USAR:\n1. Importa este archivo en Postman\n2. Click derecho en la coleccion -> 'Run collection'\n3. Click 'Run Reseñas Videojuegos...'\n4. Todos los tests se ejecutan automaticamente",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "estudiante"
   },
@@ -45,8 +45,8 @@
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "{{URL_FLASK}}/",
-          "host": ["{{URL_FLASK}}"],
+          "raw": "https://resenas-flask.onrender.com/",
+          "host": ["https://resenas-flask.onrender.com"],
           "path": [""]
         },
         "description": "Verifica que la API Flask esta en ejecucion respondiendo a la ruta raiz."
@@ -91,8 +91,8 @@
           ]
         },
         "url": {
-          "raw": "{{URL_PHP}}/registrar_videojuego.php",
-          "host": ["{{URL_PHP}}"],
+          "raw": "https://resenas-php.onrender.com/registrar_videojuego.php",
+          "host": ["https://resenas-php.onrender.com"],
           "path": ["registrar_videojuego.php"]
         },
         "description": "Prueba de registro de videojuego en PostgreSQL a traves de la aplicacion PHP."
@@ -143,8 +143,8 @@
           ]
         },
         "url": {
-          "raw": "{{URL_PHP}}/registrar_resena.php",
-          "host": ["{{URL_PHP}}"],
+          "raw": "https://resenas-php.onrender.com/registrar_resena.php",
+          "host": ["https://resenas-php.onrender.com"],
           "path": ["registrar_resena.php"]
         },
         "description": "Prueba de integracion completa: PHP registra la reseña en PostgreSQL y envia datos a la API Flask que actualiza MongoDB."
@@ -181,8 +181,8 @@
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "{{URL_PHP}}/catalogo.php",
-          "host": ["{{URL_PHP}}"],
+          "raw": "https://resenas-php.onrender.com/catalogo.php",
+          "host": ["https://resenas-php.onrender.com"],
           "path": ["catalogo.php"]
         },
         "description": "Consulta el catalogo publico con todos los videojuegos y sus reseñas desde PostgreSQL."
@@ -229,8 +229,8 @@
           "raw": "{\n  \"videojuego_id\": 1,\n  \"calificacion\": 4,\n  \"nombre_videojuego\": \"Prueba Postman Directa\"\n}"
         },
         "url": {
-          "raw": "{{URL_FLASK}}/api/videojuegos",
-          "host": ["{{URL_FLASK}}"],
+          "raw": "https://resenas-flask.onrender.com/api/videojuegos",
+          "host": ["https://resenas-flask.onrender.com"],
           "path": ["api", "videojuegos"]
         },
         "description": "Prueba directa del endpoint POST de la API Flask que actualiza estadisticas en MongoDB."
@@ -272,8 +272,8 @@
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "{{URL_FLASK}}/api/estadisticas",
-          "host": ["{{URL_FLASK}}"],
+          "raw": "https://resenas-flask.onrender.com/api/estadisticas",
+          "host": ["https://resenas-flask.onrender.com"],
           "path": ["api", "estadisticas"]
         },
         "description": "Prueba directa del endpoint GET de estadisticas que consulta datos agregados desde MongoDB."
@@ -316,8 +316,8 @@
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "{{URL_FLASK}}/api/mejores-videojuegos",
-          "host": ["{{URL_FLASK}}"],
+          "raw": "https://resenas-flask.onrender.com/api/mejores-videojuegos",
+          "host": ["https://resenas-flask.onrender.com"],
           "path": ["api", "mejores-videojuegos"]
         },
         "description": "Prueba directa del endpoint GET de mejores videojuegos ordenados por promedio de calificacion desde MongoDB."
@@ -369,8 +369,8 @@
           ]
         },
         "url": {
-          "raw": "{{URL_PHP}}/registrar_videojuego.php",
-          "host": ["{{URL_PHP}}"],
+          "raw": "https://resenas-php.onrender.com/registrar_videojuego.php",
+          "host": ["https://resenas-php.onrender.com"],
           "path": ["registrar_videojuego.php"]
         },
         "description": "Prueba de validaciones: envia un formulario vacio y verifica que se muestren los errores de validacion."
@@ -411,8 +411,8 @@
           "raw": "{}"
         },
         "url": {
-          "raw": "{{URL_FLASK}}/api/videojuegos",
-          "host": ["{{URL_FLASK}}"],
+          "raw": "https://resenas-flask.onrender.com/api/videojuegos",
+          "host": ["https://resenas-flask.onrender.com"],
           "path": ["api", "videojuegos"]
         },
         "description": "Prueba de validacion en la API Flask: envia JSON vacio y verifica que devuelva error 400."
