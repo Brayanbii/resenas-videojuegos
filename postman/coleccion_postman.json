@@ -170,7 +170,7 @@
               "",
               "pm.test('Muestra calificaciones con estrellas', function () {",
               "    var texto = pm.response.text();",
-              "    pm.expect(texto).to.include('promedio');",
+              "    pm.expect(texto).to.include('★');",
               "});"
             ],
             "type": "text/javascript"
