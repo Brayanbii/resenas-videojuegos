@@ -8,29 +8,163 @@
 #   docker compose down         -> Detiene y elimina los contenedores
 #   docker compose logs -f      -> Ver logs en tiempo real
 # ============================================================
+#
+# EXPLICACION GENERAL (estilo estudiante):
+# Docker Compose es una herramienta para definir y ejecutar aplicaciones
+# multi-contenedor. En vez de ejecutar 3 comandos "docker run" separados
+# con un monton de flags, defines TODO en este archivo YAML y lo levantas
+# con un solo comando: docker compose up.
+#
+# Este archivo define 3 SERVICIOS (contenedores):
+#   1. postgres -> Base de datos PostgreSQL 16
+#   2. php      -> Aplicacion PHP con Apache
+#   3. flask    -> API REST en Python con Flask + Gunicorn
+#
+# Ademas define 1 VOLUMEN NOMBRADO:
+#   - pgdata   -> Para persistir los datos de PostgreSQL
+#
+# RED (implicita):
+# Docker Compose crea automaticamente una red virtual llamada
+# <nombre_carpeta>_default (ej: plan_mejora_default).
+# Todos los contenedores pueden comunicarse entre si usando
+# el NOMBRE DEL SERVICIO como hostname. Por ejemplo, el
+# contenedor PHP se conecta a PostgreSQL usando "postgres" como host.
+# ============================================================
 
 # Esto ya no se usa porque las versiones recientes lo detectan solo
 # version: "3.8"
+#
+# NOTA HISTORICA (para el estudiante):
+# Antes era OBLIGATORIO especificar la version del formato de
+# docker-compose (ej: "3.8", "2.4"). Desde julio de 2023, Docker
+# Compose V2 ignora este campo y usa siempre el formato mas reciente.
+# Se deja comentado para mantener compatibilidad con versiones viejas.
+# En proyectos NUEVOS no se debe incluir.
 
 services:
 
   # ---------------------------------------------------------
   # 1. Base de datos PostgreSQL
   # ---------------------------------------------------------
+  #
+  # SERVICIO: postgres
+  # Proposito: Almacenar los datos relacionales de la aplicacion
+  # (usuarios, videojuegos, puntuaciones, etc.) en una base de
+  # datos PostgreSQL.
   postgres:
+    # image: Usa una imagen YA CONSTRUIDA desde Docker Hub.
+    # NO construye desde un Dockerfile local (a diferencia de "build:").
+    #
+    # postgres:16-alpine
+    #   - postgres: Imagen oficial de PostgreSQL mantenida por Docker.
+    #   - 16:       Version mayor de PostgreSQL (la mas reciente estable a 2024).
+    #   - alpine:   Basada en Alpine Linux (~5 MB). Imagen ultra-ligera
+    #               (~150 MB la imagen completa de PostgreSQL).
+    #               Ventaja: descarga rapida, menos superficie de ataque.
+    #               Desventaja: usa musl en vez de glibc (rara vez da problemas).
     image: postgres:16-alpine
+    # container_name: Nombre FIJO para el contenedor en ejecucion.
+    # Sin esto, Docker Compose genera nombres como plan_mejora-postgres-1.
+    # Poner un nombre fijo facilita comandos como:
+    #   docker logs postgres_videojuegos
+    #   docker exec -it postgres_videojuegos psql -U postgres
     container_name: postgres_videojuegos
+    # environment: Variables de entorno que se inyectan en el contenedor.
+    # La imagen postgres USA estas variables para CONFIGURARSE automaticamente
+    # en el PRIMER arranque (si el directorio de datos esta vacio).
     environment:
+      # POSTGRES_DB: Nombre de la base de datos que se CREA automaticamente
+      # al iniciar por primera vez. Si no se especifica, usa el valor de
+      # POSTGRES_USER como nombre de BD.
       POSTGRES_DB: videojuegos_db
+      # POSTGRES_USER: Usuario administrador (superuser) que se crea.
+      # Este usuario tiene todos los privilegios sobre la BD.
       POSTGRES_USER: postgres
+      # POSTGRES_PASSWORD: Contraseña para el usuario postgres.
+      # ADVERTENCIA DE SEGURIDAD: Poner contraseñas en texto plano en un
+      # archivo docker-compose.yml NO es seguro para produccion.
+      # Aqui es aceptable porque solo se usa en entorno LOCAL.
+      # En produccion se usan secrets (docker secrets) o variables de
+      # entorno inyectadas externamente.
       POSTGRES_PASSWORD: postgres
+    # ports: Mapea puertos entre el HOST (tu maquina) y el CONTENEDOR.
+    # Formato: "HOST:CONTENEDOR"
+    #   - "5432:5432": El puerto 5432 de tu maquina (localhost:5432)
+    #     redirige al puerto 5432 del contenedor (donde PostgreSQL escucha).
+    #   - Esto permite que herramientas como DBeaver, pgAdmin, DataGrip
+    #     o tu codigo corriendo FUERA de Docker se conecten a la BD.
+    #   - Los contenedores DENTRO de la red de Docker Compose NO necesitan
+    #     este mapeo; se conectan directamente por el nombre del servicio.
     ports:
       - "5432:5432"
+    # volumes: Monta archivos o directorios en el contenedor.
+    # Hay dos tipos de montajes de volumen:
+    #
+    #   A) BIND MOUNT (primer volumen):
+    #      ./app_php/sql/script.sql:/docker-entrypoint-initdb.d/script.sql
+    #      - Origen:  Ruta RELATIVA en tu maquina (./ significa el directorio
+    #                 donde esta este docker-compose.yml).
+    #      - Destino: Ruta ABSOLUTA dentro del contenedor.
+    #      - ¿Por que /docker-entrypoint-initdb.d/?  -- ¡MUY IMPORTANTE!
+    #        La imagen oficial de PostgreSQL tiene un punto de entrada (entrypoint)
+    #        que, en el primer arranque (cuando el directorio de datos esta vacio),
+    #        ejecuta automaticamente TODOS los archivos .sql, .sql.gz y .sh que
+    #        encuentre en /docker-entrypoint-initdb.d/ en ORDEN ALFABETICO.
+    #        Esto nos permite INICIALIZAR la base de datos (crear tablas, insertar
+    #        datos de prueba) sin necesidad de ejecutar comandos manuales.
+    #        Si el directorio de datos YA EXISTE (segundo arranque en adelante),
+    #        estos scripts se IGNORAN (no se vuelven a ejecutar).
+    #
+    #   B) VOLUMEN NOMBRADO (segundo volumen):
+    #      pgdata:/var/lib/postgresql/data
+    #      - pgdata: Es un volumen NOMBRADO definido al final de este archivo
+    #                (linea 71: volumes: pgdata:). Docker almacena sus datos
+    #                en una ubicacion gestionada (/var/lib/docker/volumes/).
+    #      - /var/lib/postgresql/data: Directorio donde PostgreSQL guarda
+    #                TODOS los datos de la base de datos (tablas, indices,
+    #                configuracion, etc.).
+    #      - PROPOSITO: PERSISTENCIA. Sin este volumen, cuando haces
+    #                "docker compose down", los datos se PIERDEN para siempre.
+    #                Con el volumen nombrado, los datos sobreviven aunque
+    #                borres el contenedor. Puedes hacer down y up cuantas
+    #                veces quieras y los datos seguiran ahi.
+    #      - Diferencia con bind mount: Un volumen nombrado es gestionado
+    #                por Docker (no ves los archivos directamente en tu proyecto).
+    #                Un bind mount monta una carpeta de tu proyecto directamente.
     volumes:
       # Ejecuta el script SQL automaticamente al iniciar
       - ./app_php/sql/script.sql:/docker-entrypoint-initdb.d/script.sql
       # Persiste los datos aunque apagues el contenedor
       - pgdata:/var/lib/postgresql/data
+    # healthcheck: Verifica periodicamente si el contenedor esta SALUDABLE.
+    # Util para que otros servicios (como PHP) ESPEREN a que PostgreSQL
+    # este listo antes de intentar conectarse.
+    #
+    # Desglose:
+    #   test: ["CMD-SHELL", "pg_isready -U postgres -d videojuegos_db"]
+    #     - CMD-SHELL: Ejecuta el comando en una shell (/bin/sh -c).
+    #     - pg_isready: Herramienta incluida en la imagen postgres que
+    #       verifica si el servidor PostgreSQL esta aceptando conexiones.
+    #       Retorna 0 (exito) si esta listo, otro valor si no.
+    #     - -U postgres: Intenta conectar como usuario "postgres".
+    #     - -d videojuegos_db: Verifica que la base de datos especifica exista.
+    #
+    #   interval: 5s
+    #     Cada CUANTOS segundos se ejecuta el chequeo.
+    #
+    #   timeout: 5s
+    #     Tiempo maximo de espera para que el comando responda.
+    #     Si tarda mas de 5s, se considera fallido.
+    #
+    #   retries: 5
+    #     Numero de fallos CONSECUTIVOS necesarios para marcar el
+    #     contenedor como "unhealthy". Con esta config, si falla 5
+    #     veces seguidas (25 segundos en total: 5 intervalos * 5s),
+    #     se marca como no-saludable.
+    #
+    # Posibles estados: starting -> healthy / unhealthy
+    # Otros servicios pueden usar "depends_on: condition: service_healthy"
+    # para esperar a que PostgreSQL este realmente listo.
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d videojuegos_db"]
       interval: 5s
@@ -40,18 +174,79 @@ services:
   # ---------------------------------------------------------
   # 2. Aplicacion PHP con Apache
   # ---------------------------------------------------------
+  #
+  # SERVICIO: php
+  # Proposito: Servir la interfaz web (HTML + PHP) que los usuarios
+  # ven en el navegador. Se conecta a PostgreSQL para datos relacionales
+  # y a la API Flask para funcionalidades que usan MongoDB.
   php:
+    # build: Construye la imagen desde un Dockerfile LOCAL.
+    # A diferencia de "image:" que descarga una imagen ya hecha,
+    # "build:" ejecuta el Dockerfile que esta en ./app_php/
+    #
+    # ./app_php es el BUILD CONTEXT: el directorio que se envia al
+    # daemon de Docker durante la construccion. Solo los archivos
+    # dentro del build context pueden ser COPIADOS con COPY en el
+    # Dockerfile.
     build: ./app_php
     container_name: php_videojuegos
+    # ports: Mapeo HOST:CONTENEDOR.
+    #   "3000:80": Accedes desde tu navegador como http://localhost:3000
+    #   y la peticion llega al puerto 80 del contenedor (Apache).
+    #   El puerto 3000 en el host se elige arbitrariamente; podria
+    #   ser cualquier numero no ocupado.
     ports:
       - "3000:80"
+    # environment: Variables de entorno para la aplicacion PHP.
+    # La aplicacion PHP lee estas variables (con getenv() en PHP)
+    # para saber como conectarse a la base de datos.
     environment:
+      # DB_HOST: postgres
+      #   En vez de una IP (ej: 172.18.0.2), usa el NOMBRE DEL SERVICIO.
+      #   Docker Compose tiene un DNS interno que resuelve los nombres
+      #   de servicio a sus IPs dentro de la red virtual.
+      #   "postgres" se resuelve a la IP del contenedor postgres.
       DB_HOST: postgres
+      # Puerto de PostgreSQL (por defecto 5432)
       DB_PORT: 5432
+      # Nombre de la base de datos a la que conectarse
       DB_NAME: videojuegos_db
+      # Usuario de la base de datos
       DB_USER: postgres
+      # Contraseña de la base de datos
       DB_PASSWORD: postgres
+      # URL de la API Flask para que PHP pueda hacer peticiones HTTP
+      # a Flask cuando necesite datos de MongoDB.
+      # "flask" se resuelve al contenedor flask, puerto 10000 (donde
+      # Gunicorn esta escuchando DENTRO de su contenedor).
+      # NOTA: Se usa el puerto INTERNO (10000), no el mapeado (5000),
+      # porque la comunicacion es CONTENEDOR a CONTENEDOR, no pasa
+      # por el host.
       API_FLASK_URL: http://flask:10000
+    # depends_on: Define dependencias de ARRANQUE entre servicios.
+    #
+    # Sintaxis y comportamiento:
+    #   postgres:
+    #     condition: service_healthy
+    #
+    #   - postgres: El servicio PHP depende del servicio postgres.
+    #   - condition: service_healthy: NO basta con que el contenedor
+    #     postgres este "iniciado" (running). Docker Compose espera
+    #     a que el HEALTHCHECK del servicio postgres reporte "healthy"
+    #     antes de iniciar el contenedor PHP.
+    #
+    # ¿Por que es importante?
+    # Sin el healthcheck, Docker Compose solo espera a que el proceso
+    # principal del contenedor postgres arranque, pero PostgreSQL puede
+    # tardar varios segundos en estar listo para aceptar conexiones
+    # (inicializar WAL, cargar datos en memoria, etc.). Si PHP intenta
+    # conectarse antes de que PostgreSQL este listo, obtiene un error
+    # de conexion.
+    #
+    # NOTA: depends_on NO espera a que el proceso dentro del contenedor
+    # este completamente listo (a menos que uses condition: service_healthy
+    # o service_completed_successfully). Sin condition, solo espera a que
+    # el contenedor arranque, no a que su aplicacion este lista.
     depends_on:
       postgres:
         condition: service_healthy
@@ -59,14 +254,73 @@ services:
   # ---------------------------------------------------------
   # 3. API Flask (Python)
   # ---------------------------------------------------------
+  #
+  # SERVICIO: flask
+  # Proposito: Proveer una API REST que se conecta a MongoDB Atlas
+  # (base de datos en la nube) para operaciones que usan MongoDB.
+  # Complementa a PostgreSQL, que maneja los datos relacionales.
   flask:
+    # build: ./app_flask -> Construye desde el Dockerfile en ./app_flask/
     build: ./app_flask
     container_name: flask_videojuegos
+    # ports: Mapeo HOST:CONTENEDOR.
+    #   "5000:10000": Puedes probar la API desde tu navegador o Postman
+    #   como http://localhost:5000. La peticion se redirige al puerto
+    #   10000 dentro del contenedor (donde Gunicorn escucha).
+    #
+    # ¿Por que 5000 en el host?
+    # Es el puerto "tradicional" de Flask. Se elige para que sea facil
+    # de recordar. Podria ser cualquier otro numero.
     ports:
       - "5000:10000"
+    # environment: Variables de entorno para la API Flask.
     environment:
+      # MONGO_URI: Cadena de conexion a MongoDB Atlas (nube).
+      # Formato de la URI de MongoDB:
+      #   mongodb+srv://<usuario>:<contraseña>@<cluster-url>/<base>?<opciones>
+      #
+      #   - mongodb+srv:// : Protocolo SRV. Usa registros DNS SRV para
+      #     descubrir automaticamente los hosts del cluster. Mas facil
+      #     que especificar cada nodo manualmente.
+      #   - brayan_user: Usuario de la base de datos (creado en MongoDB Atlas).
+      #   - OowrgD7GQvC2j4c1: Contraseña (ESTA ES UNA CONEXION REAL -
+      #     NUNCA se deberia exponer en un repo publico de GitHub).
+      #     ADVERTENCIA DE SEGURIDAD GRAVE: Este docker-compose.yml
+      #     contiene credenciales reales en texto plano. En un proyecto
+      #     real se usaria un archivo .env (excluido de git con .gitignore)
+      #     y se referenciaria asi: ${MONGO_URI}.
+      #   - @cluster0.trhpoq2.mongodb.net : URL del cluster en Atlas.
+      #   - /?retryWrites=true&w=majority : Parametros de conexion.
+      #     retryWrites=true: Reintenta operaciones de escritura fallidas.
+      #     w=majority: Espera confirmacion de la mayoria de nodos.
       MONGO_URI: mongodb+srv://brayan_user:OowrgD7GQvC2j4c1@cluster0.trhpoq2.mongodb.net/?retryWrites=true&w=majority
+      # PORT: Puerto en el que Gunicorn escucha dentro del contenedor.
+      # La variable PORT es leida por el CMD del Dockerfile:
+      #   ${PORT:-10000} -> Si PORT no existe, usa 10000.
+      # Se pasa explicitamente para que coincida con el puerto interno
+      # que otros servicios esperan.
       PORT: 10000
 
+# Definicion de VOLUMENES NOMBRADOS (top-level).
+#
+# A diferencia de los bind mounts (que montan carpetas de tu proyecto),
+# los volumenes nombrados son gestionados COMPLETAMENTE por Docker.
+#
+# Ventajas de los volumenes nombrados:
+#   - Persisten los datos aunque borres el contenedor con "docker compose down".
+#   - Para borrar el volumen tambien necesitas: docker compose down -v
+#     (la flag -v elimina los volumenes nombrados, CUIDADO: borra los datos).
+#   - Docker guarda los datos en /var/lib/docker/volumes/pgdata/_data/
+#     (en Linux) o en una ruta similar en Windows/Mac.
+#   - Puedes hacer backup, migrar, inspeccionar el volumen con comandos
+#     como "docker volume inspect pgdata".
+#   - Los volumenes nombrados funcionan mejor que bind mounts en entornos
+#     de produccion con Docker Swarm o Kubernetes.
+#
+# ¿Que pasa si no defines un volumen?
+# Los datos existen SOLO dentro del sistema de archivos del contenedor
+# (capa writable). Al hacer "docker compose down", el contenedor se
+# ELIMINA y con el TODOS sus datos. La proxima vez que hagas "up"
+# empezas desde cero (base de datos vacia, script.sql se re-ejecuta).
 volumes:
   pgdata:
