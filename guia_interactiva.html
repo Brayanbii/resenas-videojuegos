@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Guía Interactiva - Proyecto Reseñas de Videojuegos</title>
+<style>
+  :root {
+    --bg: #0f172a; --bg2: #1e293b; --bg3: #334155; --text: #e2e8f0;
+    --text2: #94a3b8; --accent: #38bdf8; --accent2: #818cf8;
+    --green: #4ade80; --red: #f87171; --yellow: #fbbf24; --pink: #f472b6;
+    --border: #334155; --card: #1e293b; --shadow: 0 4px 24px rgba(0,0,0,.3);
+    --radius: 12px; --transition: .3s cubic-bezier(.4,0,.2,1);
+  }
+  .light {
+    --bg: #f8fafc; --bg2: #fff; --bg3: #e2e8f0; --text: #1e293b;
+    --text2: #64748b; --border: #cbd5e1; --card: #fff;
+    --shadow: 0 4px 24px rgba(0,0,0,.08);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:system-ui,-apple-system,sans-serif;background:var(--bg);
+    color:var(--text);line-height:1.7;transition:background var(--transition),color var(--transition)
+  }
+  ::-webkit-scrollbar{width:8px}
+  ::-webkit-scrollbar-track{background:var(--bg)}
+  ::-webkit-scrollbar-thumb{background:var(--bg3);border-radius:4px}
+
+  /* NAVBAR */
+  .navbar{
+    position:sticky;top:0;z-index:1000;background:var(--bg2);
+    border-bottom:1px solid var(--border);backdrop-filter:blur(12px);
+    padding:0 1rem;transition:all var(--transition)
+  }
+  .nav-inner{
+    max-width:1200px;margin:0 auto;display:flex;align-items:center;
+    justify-content:space-between;height:60px;gap:1rem
+  }
+  .nav-logo{font-weight:800;font-size:1.1rem;color:var(--accent);white-space:nowrap}
+  .nav-links{display:flex;gap:.75rem;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+  .nav-links::-webkit-scrollbar{display:none}
+  .nav-links a{
+    color:var(--text2);text-decoration:none;font-size:.8rem;white-space:nowrap;
+    padding:.35rem .6rem;border-radius:6px;transition:all var(--transition)
+  }
+  .nav-links a:hover,.nav-links a.active{color:var(--accent);background:var(--bg3)}
+  .nav-actions{display:flex;gap:.5rem;align-items:center}
+  .btn-icon{
+    background:var(--bg3);border:none;color:var(--text);width:36px;height:36px;
+    border-radius:8px;cursor:pointer;font-size:1.1rem;display:flex;
+    align-items:center;justify-content:center;transition:all var(--transition)
+  }
+  .btn-icon:hover{background:var(--accent);color:#0f172a}
+
+  /* LAYOUT */
+  .container{max-width:1200px;margin:0 auto;padding:0 1.25rem}
+  .hero{
+    text-align:center;padding:3rem 1rem 2rem;
+    background:linear-gradient(135deg,var(--bg2),var(--bg));
+    border-bottom:1px solid var(--border)
+  }
+  .hero h1{font-size:clamp(1.8rem,4vw,2.8rem);font-weight:900;margin-bottom:.5rem;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;
+    -webkit-text-fill-color:transparent;background-clip:text
+  }
+  .hero p{color:var(--text2);font-size:1.05rem;max-width:700px;margin:0 auto 1.5rem}
+  .badges{display:flex;flex-wrap:wrap;gap:.5rem;justify-content:center}
+  .badge{
+    background:var(--bg3);padding:.3rem .75rem;border-radius:20px;
+    font-size:.75rem;font-weight:600;color:var(--accent)
+  }
+
+  /* SEARCH */
+  .search-wrap{max-width:500px;margin:0 auto 2rem}
+  .search-input{
+    width:100%;padding:.75rem 1rem;border-radius:var(--radius);border:2px solid var(--border);
+    background:var(--bg2);color:var(--text);font-size:.95rem;transition:all var(--transition)
+  }
+  .search-input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(56,189,248,.2)}
+
+  /* STATS */
+  .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:2rem}
+  .stat-card{
+    background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+    padding:1.25rem;text-align:center;box-shadow:var(--shadow);transition:transform var(--transition)
+  }
+  .stat-card:hover{transform:translateY(-4px)}
+  .stat-num{font-size:2rem;font-weight:900;color:var(--accent)}
+  .stat-label{color:var(--text2);font-size:.8rem;margin-top:.25rem}
+
+  /* SECTIONS */
+  .section{margin:2.5rem 0}
+  .section-title{
+    font-size:1.5rem;font-weight:800;margin-bottom:1.5rem;padding-bottom:.5rem;
+    border-bottom:2px solid var(--accent);display:flex;align-items:center;gap:.5rem
+  }
+  .section-title .emoji{font-size:1.3rem}
+
+  /* ACCORDION */
+  .accordion{margin-bottom:.75rem;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--card);box-shadow:var(--shadow)}
+  .accordion-header{
+    padding:1rem 1.25rem;cursor:pointer;display:flex;justify-content:space-between;
+    align-items:center;font-weight:700;user-select:none;transition:background var(--transition)
+  }
+  .accordion-header:hover{background:var(--bg3)}
+  .accordion-header .arrow{transition:transform var(--transition);font-size:.8rem}
+  .accordion.open .accordion-header .arrow{transform:rotate(180deg)}
+  .accordion-body{max-height:0;overflow:hidden;transition:max-height .4s ease,padding .3s ease}
+  .accordion.open .accordion-body{max-height:8000px;padding:0 1.25rem 1.25rem}
+  .accordion-body p,.accordion-body li{margin-bottom:.6rem;color:var(--text2);font-size:.9rem}
+  .accordion-body strong{color:var(--text)}
+  .accordion-body .code-block{
+    background:var(--bg);border:1px solid var(--border);border-radius:8px;
+    padding:.75rem 1rem;overflow-x:auto;font-family:'Cascadia Code',monospace;
+    font-size:.8rem;margin:.5rem 0 1rem;color:var(--green);line-height:1.6
+  }
+  .accordion-body .code-block .kw{color:var(--accent)}
+  .accordion-body .code-block .str{color:var(--yellow)}
+  .accordion-body .code-block .cm{color:var(--text2);font-style:italic}
+
+  /* FLOW STEPS */
+  .flow-step{
+    display:flex;gap:1rem;margin-bottom:1.5rem;padding:1rem;
+    background:var(--bg2);border-radius:var(--radius);border-left:4px solid var(--accent)
+  }
+  .flow-num{
+    width:40px;height:40px;border-radius:50%;background:var(--accent);
+    color:#0f172a;display:flex;align-items:center;justify-content:center;
+    font-weight:900;font-size:1.1rem;flex-shrink:0
+  }
+  .flow-content h4{margin-bottom:.25rem;font-size:.95rem}
+  .flow-content p{color:var(--text2);font-size:.85rem;margin:0}
+
+  /* TABLE */
+  .table-wrap{overflow-x:auto;margin:1rem 0}
+  table{width:100%;border-collapse:collapse;font-size:.85rem}
+  th{background:var(--bg3);padding:.6rem .8rem;text-align:left;font-weight:700}
+  td{padding:.6rem .8rem;border-bottom:1px solid var(--border)}
+  tr:hover td{background:var(--bg2)}
+  .pass{color:var(--green)}.fail{color:var(--red)}
+
+  /* QUIZ */
+  .quiz-card{
+    background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+    padding:1.5rem;margin-bottom:1rem;box-shadow:var(--shadow)
+  }
+  .quiz-q{font-weight:700;margin-bottom:.75rem;font-size:.95rem}
+  .quiz-opt{
+    display:block;width:100%;text-align:left;padding:.7rem 1rem;margin:.3rem 0;
+    background:var(--bg2);border:2px solid var(--border);border-radius:8px;
+    color:var(--text);cursor:pointer;font-size:.85rem;transition:all var(--transition)
+  }
+  .quiz-opt:hover{border-color:var(--accent);background:var(--bg3)}
+  .quiz-opt.correct{border-color:var(--green);background:rgba(74,222,128,.1)}
+  .quiz-opt.wrong{border-color:var(--red);background:rgba(248,113,113,.1)}
+  .quiz-feedback{font-size:.8rem;margin-top:.5rem;font-weight:600;display:none}
+  .quiz-feedback.show{display:block}
+  .quiz-score{text-align:center;font-size:1.3rem;font-weight:900;margin:1.5rem 0;color:var(--accent)}
+
+  /* BACK TO TOP */
+  .btt{
+    position:fixed;bottom:1.5rem;right:1.5rem;width:44px;height:44px;
+    border-radius:50%;background:var(--accent);color:#0f172a;border:none;
+    cursor:pointer;font-size:1.3rem;display:flex;align-items:center;
+    justify-content:center;opacity:0;transform:translateY(20px);
+    transition:all var(--transition);z-index:999;box-shadow:var(--shadow)
+  }
+  .btt.visible{opacity:1;transform:translateY(0)}
+
+  /* WHATSAPP FAB */
+  .memory-btn{
+    position:fixed;bottom:5.5rem;right:1.5rem;background:var(--green);
+    color:#0f172a;border:none;padding:.6rem 1rem;border-radius:20px;
+    cursor:pointer;font-size:.75rem;font-weight:700;z-index:999;
+    box-shadow:var(--shadow);transition:all var(--transition)
+  }
+  .memory-btn:hover{transform:scale(1.05)}
+  .memory-modal{
+    display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;
+    align-items:center;justify-content:center
+  }
+  .memory-modal.open{display:flex}
+  .memory-content{
+    background:var(--card);border-radius:var(--radius);padding:2rem;
+    max-width:500px;width:90%;max-height:80vh;overflow-y:auto
+  }
+  .memory-content h3{margin-bottom:1rem;color:var(--accent)}
+  .memory-item{
+    padding:.6rem;margin:.3rem 0;border-radius:6px;
+    background:var(--bg2);font-size:.85rem;cursor:pointer;display:flex;
+    justify-content:space-between;align-items:center
+  }
+  .memory-item:hover{background:var(--bg3)}
+  .memory-item .del{color:var(--red);cursor:pointer;padding:0 .5rem;font-size:1.1rem}
+  .flashcard{
+    perspective:1000px;margin:1rem 0
+  }
+  .flashcard-inner{
+    position:relative;width:100%;min-height:150px;transition:transform .6s;
+    transform-style:preserve-3d;cursor:pointer
+  }
+  .flashcard-inner.flipped{transform:rotateY(180deg)}
+  .flashcard-front,.flashcard-back{
+    position:absolute;inset:0;backface-visibility:hidden;padding:1.5rem;
+    border-radius:var(--radius);display:flex;align-items:center;
+    justify-content:center;text-align:center;font-weight:700;font-size:.9rem;
+    border:2px solid var(--border)
+  }
+  .flashcard-front{background:var(--bg2);color:var(--accent)}
+  .flashcard-back{background:var(--bg3);color:var(--text);transform:rotateY(180deg)}
+  .flashcard-counter{text-align:center;color:var(--text2);font-size:.75rem;margin-top:.5rem}
+
+  /* RESPONSIVE */
+  @media(max-width:768px){
+    .nav-inner{flex-wrap:wrap;height:auto;padding:.5rem 0}
+    .nav-links{order:3;width:100%;justify-content:flex-start;padding:.25rem 0}
+    .hero{padding:2rem .5rem 1.5rem}
+    .flow-step{flex-direction:column;text-align:center;align-items:center}
+    .stats-grid{grid-template-columns:repeat(2,1fr)}
+    .search-wrap{margin:0 1rem 1.5rem}
+  }
+  @media(max-width:480px){.stats-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar" id="navbar">
+  <div class="nav-inner">
+    <div class="nav-logo">Reseñas Videojuegos</div>
+    <div class="nav-links" id="navLinks">
+      <a href="#general">Visión General</a>
+      <a href="#arquitectura">Arquitectura</a>
+      <a href="#postgresql">PostgreSQL</a>
+      <a href="#mongodb">MongoDB</a>
+      <a href="#php">PHP</a>
+      <a href="#flask">Flask</a>
+      <a href="#flujo">Flujo</a>
+      <a href="#docker">Docker</a>
+      <a href="#pruebas">Pruebas</a>
+      <a href="#quiz">Quiz</a>
+    </div>
+    <div class="nav-actions">
+      <button class="btn-icon" id="themeToggle" title="Cambiar tema" onclick="toggleTheme()">🌓</button>
+      <button class="btn-icon" id="searchBtn" title="Buscar" onclick="document.getElementById('searchBox').focus()">🔍</button>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="container">
+    <h1>Guía Interactiva del Proyecto</h1>
+    <p>Sistema de Reseñas de Videojuegos — Arquitectura de dos servicios: PHP + PostgreSQL y Flask + MongoDB, comunicados mediante API REST, desplegados en Render con Docker.</p>
+    <div class="badges">
+      <span class="badge">PHP 8.2</span><span class="badge">PostgreSQL 16</span>
+      <span class="badge">Python 3.11</span><span class="badge">Flask</span>
+      <span class="badge">MongoDB Atlas</span><span class="badge">Docker</span>
+      <span class="badge">Render</span><span class="badge">Selenium</span>
+      <span class="badge">Locust</span><span class="badge">Postman</span>
+    </div>
+    <div class="search-wrap" style="margin-top:1.5rem">
+      <input type="text" class="search-input" id="searchBox" placeholder="Buscar cualquier tema... (ej: PDO, MongoDB, Docker, validaciones)" oninput="searchContent()">
+      <div id="searchResults" style="margin-top:.5rem;font-size:.8rem;color:var(--text2)"></div>
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<div class="container">
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-num">2</div><div class="stat-label">Aplicaciones (PHP + Flask)</div></div>
+    <div class="stat-card"><div class="stat-num">2</div><div class="stat-label">Bases de Datos (SQL + NoSQL)</div></div>
+    <div class="stat-card"><div class="stat-num">54</div><div class="stat-label">Archivos en el Proyecto</div></div>
+    <div class="stat-card"><div class="stat-num">24/24</div><div class="stat-label">Pruebas Postman Exitosas</div></div>
+  </div>
+</div>
+
+<!-- MAIN CONTENT -->
+<main class="container" id="mainContent">
+
+  <!-- 1. VISION GENERAL -->
+  <section class="section" id="general">
+    <h2 class="section-title"><span class="emoji">🎮</span> 1. Visión General del Proyecto</h2>
+
+    <div class="accordion open">
+      <div class="accordion-header" onclick="toggleAccordion(this)">¿Qué es este proyecto? <span class="arrow">▼</span></div>
+      <div class="accordion-body">
+        <p>Este proyecto es un <strong>sistema de reseñas de videojuegos</strong> compuesto por <strong>DOS aplicaciones separadas</strong> que se comunican entre sí mediante una <strong>API REST</strong>.</p>
+        <p><strong>Aplicación Principal (PHP):</strong> Permite registrar videojuegos, escribir reseñas con calificaciones de 1 a 5 estrellas, consultar el catálogo completo y ver estadísticas generadas por el servicio de analítica.</p>
+        <p><strong>Servicio de Analítica (Flask):</strong> Recibe datos de reseñas desde PHP, los almacena en MongoDB, y genera estadísticas (totales, promedios, rankings de mejores videojuegos).</p>
+        <p>Ambos sistemas están desplegados en <strong>Render</strong> (plataforma cloud gratuita) usando <strong>Docker</strong>. PostgreSQL está en Render y MongoDB en <strong>MongoDB Atlas</strong>.</p>
+        <p><strong>URLs públicas:</strong></p>
+        <div class="code-block">🌐 PHP: <span class="kw">https://</span>resenas-php.onrender.com<br>🐍 Flask: <span class="kw">https://</span>resenas-flask.onrender.com</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. ARQUITECTURA -->
+  <section class="section" id="arquitectura">
+    <h2 class="section-title"><span class="emoji">🏗️</span> 2. Arquitectura del Sistema</h2>
+
+    <div class="accordion open">
+      <div class="accordion-header" onclick="toggleAccordion(this)">Diagrama de flujo y componentes <span class="arrow">▼</span></div>
+      <div class="accordion-body">
+        <div class="code-block" style="text-align:center;font-size:.75rem">
+          USUARIO (Navegador Web)<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;│ HTTPS<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;▼<br>
+          ┌─────────────────┐&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;┌──────────────────┐<br>
+          │ APLICACION PHP  │&nbsp;HTTP&nbsp;│  API FLASK       │<br>
+          │ (Render)        │─────▶│  (Render)        │<br>
+          │ formularios     │ JSON │  POST /videojuegos│<br>
+          │ catalogo        │      │  GET /estadisticas│<br>
+          │ estadisticas    │      │  GET /mejores     │<br>
+          └───────┬─────────┘      └───────┬──────────┘<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│ SQL (PDO)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│ PyMongo<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;▼&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;▼<br>
+          ┌─────────────────┐&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;┌──────────────────┐<br>
+          │ PostgreSQL      │      │ MongoDB Atlas    │<br>
+          │ (Render)        │      │ (Cloud)          │<br>
+          │ videojuegos     │      │ estadisticas_    │<br>
+          │ resenas         │      │ videojuegos      │<br>
+          └─────────────────┘      └──────────────────┘
+        </div>
+        <p><strong>¿Por qué dos bases de datos diferentes?</strong></p>
+        <p><strong>PostgreSQL (SQL)</strong> para la app principal: datos estructurados, relaciones entre tablas (1 videojuego → muchas reseñas), integridad referencial con FOREIGN KEY y ON DELETE CASCADE, consultas JOIN eficientes.</p>
+        <p><strong>MongoDB (NoSQL)</strong> para analítica: datos agregados (sumas, promedios, conteos), sin esquema fijo, más rápido para escrituras frecuentes, pipelines de agregación potentes.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. POSTGRESQL -->
+  <section class="section" id="postgresql">
+    <h2 class="section-title"><span class="emoji">🗄️</span> 3. Base de Datos PostgreSQL</h2>
+
+    <div class="accordion">
+      <div class="accordion-header" onclick="toggleAccordion(this)">Tabla: videojuegos <span class="arrow">▼</span></div>
+      <div class="accordion-body">
+        <div class="code-block">
+<span class="kw">CREATE TABLE</span> videojuegos (<br>
+&nbsp;&nbsp;id <span class="kw">SERIAL PRIMARY KEY</span>,<br>
+&nbsp;&nbsp;nombre <span class="kw">VARCHAR</span>(200) <span class="kw">NOT NULL</span>,<br>
+&nbsp;&nbsp;genero <span class="kw">VARCHAR</span>(100) <span class="kw">NOT NULL</span>,<br>
+&nbsp;&nbsp;plataforma <span class="kw">VARCHAR</span>(100) <span class="kw">NOT NULL</span>,<br>
+&nbsp;&nbsp;descripcion <span class="kw">TEXT</span>,<br>
+&nbsp;&nbsp;fecha_lanzamiento <span class="kw">DATE</span>,<br>
+&nbsp;&nbsp;fecha_registro <span class="kw">TIMESTAMP DEFAULT CURRENT_TIMESTAMP</span><br>
+);
+        </div>
+        <p><strong>SERIAL:</strong> Genera números autoincrementales (1, 2, 3...). <strong>PRIMARY KEY:</strong> Identificador único, no puede repetirse. <strong>VARCHAR(200):</strong> Texto variable de máximo 200 caracteres, más eficiente que TEXT para strings cortos. <strong>TEXT:</strong> Texto ilimitado (hasta 1GB), ideal para descripciones largas. <strong>DATE:</strong> Solo fecha (año-mes-día), ocupa 4 bytes. <strong>TIMESTAMP:</strong> Fecha + hora, ocupa 8 bytes. <strong>DEFAULT CURRENT_TIMESTAMP:</strong> Si no se especifica valor, usa la fecha/hora actual automáticamente.</p>
+      </div>
+    </div>
+
+    <div class="accordion">
+      <div class="accordion-header" onclick="toggleAccordion(this)">Tabla: resenas (con restricciones) <span class="arrow">▼</span></div>
+      <div class="accordion-body">
+        <div class="code-block">
+<span class="kw">CREATE TABLE</span> resenas (<br>
+&nbsp;&nbsp;id <span class="kw">SERIAL PRIMARY KEY</span>,<br>
+&nbsp;&nbsp;videojuego_id <span class="kw">INTEGER NOT NULL</span>,<br>
+&nbsp;&nbsp;nombre_usuario <span class="kw">VARCHAR</span>(150) <span class="kw">NOT NULL</span>,<br>
+&nbsp;&nbsp;calificacion <span class="kw">INTEGER NOT NULL CHECK</span> (calificacion >= 1 <span class="kw">AND</span> calificacion <= 5),<br>
+&nbsp;&nbsp;comentario <span class="kw">TEXT</span>,<br>
+&nbsp;&nbsp;fecha_registro <span class="kw">TIMESTAMP DEFAULT CURRENT_TIMESTAMP</span>,<br>
+&nbsp;&nbsp;<span class="kw">CONSTRAINT</span> fk_resena_videojuego<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">FOREIGN KEY</span> (videojuego_id) <span class="kw">REFERENCES</span> videojuegos(id)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">ON DELETE CASCADE</span><br>
+);
+        </div>
+        <p><strong>CHECK (calificacion >= 1 AND calificacion <= 5):</strong> Restricción que impide guardar valores fuera del rango 1-5. Si alguien intenta calificacion=6, PostgreSQL rechaza la operación.</p>
+        <p><strong>FOREIGN KEY:</strong> Garantiza que videojuego_id siempre apunte a un videojuego que existe. No se puede insertar una reseña para un juego inexistente.</p>
+        <p><strong>ON DELETE CASCADE:</strong> Si se borra un videojuego, se borran TODAS sus reseñas automáticamente. Evita registros "huérfanos".</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. MONGODB -->
+  <section class="section" id="mongodb">
+    <h2 class="section-title"><span class="emoji">🍃</span> 4. Base de Datos MongoDB Atlas</h2>
+
+    <div class="accordion">
+      <div class="accordion-header" onclick="toggleAccordion(this)">Estructura del documento y operaciones <span class="arrow">▼</span></div>
+      <div class="accordion-body">
+        <p><strong>Base de datos:</strong> analitica_videojuegos<br><strong>Colección:</strong> estadisticas_videojuegos</p>
+        <div class="code-block">
+{<br>
+&nbsp;&nbsp;<span class="str">"videojuego_id"</span>: 1,<br>
+&nbsp;&nbsp;<span class="str">"nombre_videojuego"</span>: <span class="str">"The Legend of Zelda: Tears of the Kingdom"</span>,<br>
+&nbsp;&nbsp;<span class="str">"total_resenas"</span>: 5,<br>
+&nbsp;&nbsp;<span class="str">"suma_calificaciones"</span>: 22,<br>
+&nbsp;&nbsp;<span class="str">"promedio_calificacion"</span>: 4.4,<br>
+&nbsp;&nbsp;<span class="str">"ultima_resena"</span>: <span class="str">"2026-07-01T12:00:00Z"</span><br>
+}
+        </div>
+        <p><strong>¿Por qué guardar suma y contador en vez de cada reseña?</strong> Es el patrón "aggregation by accumulation". En vez de guardar cada reseña individual y recalcular todo desde cero, mantenemos acumulados. Ventajas: consultas más rápidas (leer 1 doc vs N docs), menos espacio, el promedio es una simple división.</p>
+        <p><strong>Pipeline de agregación</strong> usado en /api/estadisticas:</p>
+        <div class="code-block">
+[<br>
+&nbsp;&nbsp;{ <span class="str">'$group'</span>: {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;'_id': <span class="kw">None</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="str">'total_resenas'</span>: {<span class="str">'$sum'</span>: <span class="str">'$total_resenas'</span>},<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="str">'suma_calificaciones'</span>: {<span class="str">'$sum'</span>: <span class="str">'$suma_calificaciones'</span>}<br>
+&nbsp;&nbsp;}<br>
+]
+        </div>
+        <p>Agrupa todos los documentos en un solo grupo y suma los totales de reseñas y calificaciones de toda la colección.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. APLICACION PHP -->
+  <section class="section" id="php">
+    <h2 class="section-title"><span class="emoji">🐘</span> 5. Aplicación PHP - Archivo por Archivo</h2>
+
+    <div class="accordion">
+      <div class="accordion-header" onclick="toggleAccordion(this)">conexion.php — Conexión PDO a PostgreSQL <span class="arrow">▼</span></div>
+      <div class="accordion-body">
+        <p>Establece la conexión con PostgreSQL usando <strong>PDO (PHP Data Objects)</strong>. Lee variables de entorno (<code>getenv()</code>) para host, puerto, nombre BD, usuario y contraseña. Si no existen (desarrollo local), usa valores por defecto.</p>
+        <p><strong>DSN:</strong> <code>"pgsql:host=$host_bd;port=$puerto_bd;dbname=$nombre_bd"</code></p>
+        <p><strong>Configuraciones clave:</strong></p>
+        <ul>
+          <li><strong>PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION:</strong> Lanza excepciones cuando algo falla, permitiendo usar try/catch.</li>
+          <li><strong>PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC:</strong> Los resultados se devuelven como arrays asociativos ($fila['nombre']).</li>
+          <li><strong>PDO::ATTR_EMULATE_PREPARES => false:</strong> Usa preparación nativa de PostgreSQL (más segura).</li>
+        </ul>
+        <p><strong>¿Por qué variables de entorno?</strong> Para no escribir credenciales en el código. En desarrollo se usan defaults, en producción Render inyecta los valores reales.</p>
+      </div>
+    </div>
+
+    <div class="accordion">
+      <div class="accordion-header" onclick="toggleAccordion(this)">registrar_videojuego.php — Formulario con validaciones <span class="arrow">▼</span></div>
+      <div class="accordion-body">
+        <p><strong>Flujo:</strong> GET muestra el formulario vacío, POST valida los campos e inserta en la BD.</p>
+        <p><strong>Validaciones por campo:</strong></p>
+        <ul>
+          <li><strong>nombre:</strong> Obligatorio (<code>empty()</code>), mínimo 2 caracteres, máximo 200 (<code>strlen()</code>)</li>
+          <li><strong>genero:</strong> Obligatorio, select con opciones predefinidas</li>
+          <li><strong>plataforma:</strong> Obligatorio, select con opciones predefinidas</li>
+          <li><strong>descripción:</strong> Opcional, máximo 2000 caracteres</li>
+          <li><strong>fecha_lanzamiento:</strong> Obligatorio, se valida con <code>checkdate()</code> que verifica fechas reales</li>
+        </ul>
+        <p><strong>Seguridad:</strong> <code>htmlspecialchars()</code> previene XSS, consultas preparadas con <code>bindParam()</code> previenen inyección SQL, validación del lado del servidor (no se confía en HTML5).</p>
+      </div>
+    </div>
+
+    <div class="accordion">
+      <div class="accordion-header" onclick="toggleAccordion(this)">registrar_resena.php — Integración PHP → Flask <span class="arrow">▼</span></div>
+      <div class="accordion-body">
+        <p>El select de videojuegos se llena <strong>dinámicamente desde PostgreSQL</strong>. Al registrar, además de guardar en PostgreSQL, envía datos a la API Flask mediante <strong>cURL</strong>.</p>
+        <p><strong>Flujo de integración:</strong> Formulario → Validación → INSERT en PostgreSQL → cURL POST a Flask → Flask actualiza MongoDB.</p>
+        <p>Se usa <code>curl_init()</code>, <code>curl_setopt_array()</code>, <code>curl_exec()</code> y <code>curl_close()</code> para enviar JSON con los datos de la reseña a la API Flask.</p>
+      </div>
+    </div>
+
+    <div class="accordion">
+      <div class="accordion-header" onclick="toggleAccordion(this)">catalogo.php — Vista pública con JOIN y estrellas <span class="arrow">▼</span></div>
+      <div class="accordion-body">
+        <div class="code-block">
+<span class="kw">SELECT</span> v.*, <br>
+&nbsp;&nbsp;<span class="kw">COALESCE</span>(<span class="kw">ROUND</span>(<span class="kw">AVG</span>(r.calificacion)::numeric, 1), 0) <span class="kw">AS</span> promedio,<br>
+&nbsp;&nbsp;<span class="kw">COUNT</span>(r.id) <span class="kw">AS</span> total_resenas<br>
+<span class="kw">FROM</span> videojuegos v<br>
+<span class="kw">LEFT JOIN</span> resenas r <span class="kw">ON</span> v.id = r.videojuego_id<br>
+<span class="kw">GROUP BY</span> v.id <span class="kw">ORDER BY</span> promedio <span class="kw">DESC</span>
+        </div>
+        <p><strong>LEFT JOIN:</strong> Incluye videojuegos sin reseñas (promedio = 0). <strong>AVG():</strong> Promedio de calificaciones. <strong>ROUND(..., 1):</strong> Redondea a 1 decimal. <strong>COALESCE(..., 0):</strong> Si es NULL, usa 0.</p>
+        <p>Las estrellas se muestran con caracteres Unicode: ★ (U+2605, llena) y ☆ (U+2606, vacía), en un bucle for que redondea el promedio.</p>
+      </div>
+    </div>
+
+    <div class="accordion">
+      <div class="accordion-header" onclick="toggleAccordion(this)">funciones_api.php — Comunicación con Flask <span class="arrow">▼</span></div>
+      <div class="accordion-body">
+        <p>Contiene 3 funciones:</p>
+        <p><strong>enviar_resena_a_api():</strong> POST a /api/videojuegos usando cURL. Envía JSON con videojuego_id, calificacion, nombre_videojuego.</p>
+        <p><strong>consultar_estadisticas_api():</strong> GET a /api/estadisticas usando file_get_contents() con stream context.</p>
+        <p><strong>consultar_mejores_videojuegos_api():</strong> GET a /api/mejores-videojuegos usando file_get_contents().</p>
+        <p><strong>¿Por qué cURL para POST y file_get_contents para GET?</strong> cURL es más potente para POST con JSON y headers personalizados. Para GET simples, file_get_contents es suficiente y más simple.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. FLASK -->
+  <section class="section" id="flask">
+    <h2 class="section-title"><span class="emoji">🐍</span> 6. API Flask - Endpoints</h2>
+
+    <div class="accordion">
+      <div class="accordion-header" onclick="toggleAccordion(this)">app.py — Los 4 endpoints <span class="arrow">▼</span></div>
+      <div class="accordion-body">
+        <div class="table-wrap">
+          <table>
+            <tr><th>Método</th><th>Endpoint</th><th>Propósito</th></tr>
+            <tr><td>GET</td><td>/</td><td>Verificar que la API funciona</td></tr>
+            <tr><td>POST</td><td>/api/videojuegos</td><td>Recibir reseña, actualizar estadísticas en MongoDB</td></tr>
+            <tr><td>GET</td><td>/api/estadisticas</td><td>Devolver totales, promedios, mejor juego, más reseñado</td></tr>
+            <tr><td>GET</td><td>/api/mejores-videojuegos</td><td>Ranking ordenado por promedio de calificación</td></tr>
+          </table>
+        </div>
+        <p><strong>POST /api/videojuegos — Lógica:</strong></p>
+        <ol>
+          <li>Recibe JSON con videojuego_id, calificacion, nombre_videojuego</li>
+          <li>Valida campos obligatorios y calificación entre 1 y 5</li>
+          <li>Busca el videojuego en MongoDB con <code>find_one()</code></li>
+          <li>Si EXISTE: incrementa total_resenas, suma_calificaciones, recalcula promedio, usa <code>update_one()</code></li>
+          <li>Si NO EXISTE: crea documento nuevo con <code>insert_one()</code></li>
+          <li>Responde 201 Created con mensaje de confirmación</li>
+        </ol>
+        <p><strong>En producción</strong> Render ejecuta: <code>gunicorn app:aplicacion --bind 0.0.0.0:$PORT</code></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. FLUJO COMPLETO -->
+  <section class="section" id="flujo">
+    <h2 class="section-title"><span class="emoji">🔄</span> 7. Flujo Completo de una Reseña</h2>
+
+    <div class="accordion open">
+      <div class="accordion-header" onclick="toggleAccordion(this)">Los 8 pasos de una reseña (click para expandir) <span class="arrow">▼</span></div>
+      <div class="accordion-body">
+        <div class="flow-step"><div class="flow-num">1</div><div class="flow-content"><h4>Usuario llena el formulario</h4><p>Selecciona un videojuego del menú (cargado desde PostgreSQL), escribe su nombre, elige calificación 1-5, escribe comentario opcional. Clic en "Registrar Reseña".</p></div></div>
+        <div class="flow-step"><div class="flow-num">2</div><div class="flow-content"><h4>PHP recibe los datos (POST)</h4><p>El formulario se envía por POST a registrar_resena.php. Los datos llegan en el array superglobal <code>$_POST</code>.</p></div></div>
+        <div class="flow-step"><div class="flow-num">3</div><div class="flow-content"><h4>Validación de campos</h4><p>Verifica videojuego_id, existencia del juego en BD, longitud del nombre, rango de calificación, longitud del comentario. Si falla, muestra errores en rojo.</p></div></div>
+        <div class="flow-step"><div class="flow-num">4</div><div class="flow-content"><h4>Inserción en PostgreSQL</h4><p>Ejecuta INSERT con consultas preparadas y bindParam(). Los marcadores :videojuego_id, :nombre_usuario se reemplazan de forma segura.</p></div></div>
+        <div class="flow-step"><div class="flow-num">5</div><div class="flow-content"><h4>Notificación a la API Flask (cURL)</h4><p>PHP prepara un array, lo convierte a JSON con <code>json_encode()</code>, configura cURL para POST a /api/videojuegos con header Content-Type: application/json.</p></div></div>
+        <div class="flow-step"><div class="flow-num">6</div><div class="flow-content"><h4>Flask actualiza MongoDB</h4><p>El endpoint recibe el JSON, busca el documento. Si existe: incrementa contador y recalcula promedio. Si no: crea documento nuevo. Responde 201.</p></div></div>
+        <div class="flow-step"><div class="flow-num">7</div><div class="flow-content"><h4>PHP muestra resultado al usuario</h4><p>Mensaje verde: "¡Reseña registrada correctamente! Se enviaron datos a la API de analítica."</p></div></div>
+        <div class="flow-step"><div class="flow-num">8</div><div class="flow-content"><h4>Consulta de estadísticas</h4><p>Al visitar estadisticas.php, PHP hace GET a /api/estadisticas, Flask consulta MongoDB con aggregate() y devuelve los datos calculados.</p></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8. DOCKER Y RENDER -->
+  <section class="section" id="docker">
+    <h2 class="section-title"><span class="emoji">🐳</span> 8. Docker y Despliegue en Render</h2>
+
+    <div class="accordion">
+      <div class="accordion-header" onclick="toggleAccordion(this)">¿Qué es Docker y cómo se usa en el proyecto? <span class="arrow">▼</span></div>
+      <div class="accordion-body">
+        <p><strong>Docker</strong> es una plataforma que "empaqueta" una aplicación con todas sus dependencias en un <strong>contenedor</strong>. Un contenedor es como una máquina virtual ligera que incluye SO, bibliotecas, y la aplicación.</p>
+        <p><strong>Ventajas:</strong> "En mi máquina funciona" deja de ser problema. El mismo contenedor funciona en desarrollo y producción. Fácil de desplegar (solo necesitas el Dockerfile). Aislamiento: cada servicio tiene sus propias dependencias.</p>
+        <p><strong>Dockerfile de PHP:</strong> Basado en <code>php:8.2-apache</code>, instala <code>libpq-dev</code> y compila <code>pdo_pgsql</code>, copia los archivos a <code>/var/www/html/</code>.</p>
+        <p><strong>Dockerfile de Flask:</strong> Basado en <code>python:3.11-slim</code>, instala dependencias con pip, ejecuta con <code>gunicorn app:aplicacion --bind 0.0.0.0:$PORT</code>.</p>
+        <p><strong>docker-compose.yml:</strong> Solo para desarrollo local. Define 3 servicios: postgres, php (puerto 3000), flask (puerto 5000). Comando: <code>docker compose up -d</code></p>
+        <p><strong>Render:</strong> Al conectar el repo de GitHub, Render detecta los Dockerfiles y construye las imágenes automáticamente. Los servicios gratuitos se "duermen" tras 15 min de inactividad (la primera petición tarda 30-60s).</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9-11. PRUEBAS -->
+  <section class="section" id="pruebas">
+    <h2 class="section-title"><span class="emoji">🧪</span> 9-11. Pruebas del Sistema</h2>
+
+    <div class="accordion">
+      <div class="accordion-header" onclick="toggleAccordion(this)">Selenium — 4 pruebas automatizadas <span class="arrow">▼</span></div>
+      <div class="accordion-body">
+        <p><strong>Selenium WebDriver</strong> controla un navegador real desde código Python. Simula acciones de usuario: clics, escritura, selección de opciones, navegación.</p>
+        <div class="table-wrap">
+          <table>
+            <tr><th>#</th><th>Prueba</th><th>Resultado</th></tr>
+            <tr><td>1</td><td>Registro de Videojuego (Hollow Knight)</td><td class="pass">✅ Exitosa</td></tr>
+            <tr><td>2</td><td>Registro de Reseña (GamerPro99, 5★)</td><td class="pass">✅ Exitosa</td></tr>
+            <tr><td>3</td><td>Consulta de Catálogo</td><td class="pass">✅ Exitosa</td></tr>
+            <tr><td>4</td><td>Consulta de Estadísticas</td><td class="pass">✅ Exitosa</td></tr>
+          </table>
+        </div>
+        <p><strong>Problema resuelto:</strong> La prueba 1 fallaba porque el botón estaba tapado por la tabla de abajo. Se solucionó con <code>navegador.execute_script("arguments[0].scrollIntoView(true);", boton)</code>.</p>
+      </div>
+    </div>
+
+    <div class="accordion">
+      <div class="accordion-header" onclick="toggleAccordion(this)">Locust — Pruebas de carga (20 usuarios, 2 min) <span class="arrow">▼</span></div>
+      <div class="accordion-body">
+        <p><strong>Configuración:</strong> 20 usuarios concurrentes, spawn rate de 5 usuarios/segundo, 2 minutos 11 segundos de duración.</p>
+        <div class="table-wrap">
+          <table>
+            <tr><th>Endpoint</th><th>Peticiones</th><th>Promedio</th><th>Mediana</th><th>P95</th></tr>
+            <tr><td>GET /catalogo</td><td>248</td><td>3066 ms</td><td>2500 ms</td><td>7900 ms</td></tr>
+            <tr><td>GET /estadisticas</td><td>92</td><td>353 ms</td><td>320 ms</td><td>550 ms</td></tr>
+            <tr><td>POST /registrar_resena</td><td>93</td><td>904 ms</td><td>790 ms</td><td>2000 ms</td></tr>
+            <tr><td>POST /registrar_videojuego</td><td>84</td><td>757 ms</td><td>670 ms</td><td>1700 ms</td></tr>
+          </table>
+        </div>
+        <p><strong>Throughput total:</strong> 3.94 req/s. <strong>Errores:</strong> 0%. <strong>Tiempo promedio general:</strong> 1819 ms.</p>
+        <p>El catálogo es lo más pesado (JOIN + Bootstrap), las estadísticas lo más rápido (solo lectura de MongoDB).</p>
+      </div>
+    </div>
+
+    <div class="accordion">
+      <div class="accordion-header" onclick="toggleAccordion(this)">Postman — 9 pruebas de integración <span class="arrow">▼</span></div>
+      <div class="accordion-body">
+        <p><strong>24 de 24 pruebas pasaron (100%).</strong> Tiempo total: 1.98 segundos.</p>
+        <div class="table-wrap">
+          <table>
+            <tr><th>#</th><th>Prueba</th><th>Resultado</th></tr>
+            <tr><td>1</td><td>Verificar API Flask activa (GET /)</td><td class="pass">✅ 200 OK</td></tr>
+            <tr><td>2</td><td>PHP registra videojuego en PostgreSQL</td><td class="pass">✅ 200 OK</td></tr>
+            <tr><td>3</td><td>PHP registra reseña + notifica Flask → MongoDB</td><td class="pass">✅ 200 OK</td></tr>
+            <tr><td>4</td><td>Catálogo muestra juegos con estrellas ★</td><td class="pass">✅ 200 OK</td></tr>
+            <tr><td>5</td><td>API recibe datos por POST directo</td><td class="pass">✅ 201 Created</td></tr>
+            <tr><td>6</td><td>API devuelve estadísticas</td><td class="pass">✅ 200 OK</td></tr>
+            <tr><td>7</td><td>API devuelve ranking mejores juegos</td><td class="pass">✅ 200 OK</td></tr>
+            <tr><td>8</td><td>Validaciones: formulario vacío muestra errores</td><td class="pass">✅ 200 OK</td></tr>
+            <tr><td>9</td><td>API rechaza JSON vacío</td><td class="pass">✅ 400 Bad Request</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 12. PREGUNTAS DEL PROFESOR -->
+  <section class="section">
+    <h2 class="section-title"><span class="emoji">❓</span> 12. Preguntas Frecuentes del Profesor</h2>
+    <p style="color:var(--text2);margin-bottom:1rem;font-size:.85rem">Haz clic en cada pregunta para ver la respuesta preparada. Son 12 preguntas clave que cubren todo el proyecto.</p>
+
+    <div class="accordion"><div class="accordion-header" onclick="toggleAccordion(this)">¿Por qué usaste dos bases de datos diferentes? <span class="arrow">▼</span></div><div class="accordion-body"><p>Porque cada una es mejor para su propósito. PostgreSQL es relacional, ideal para datos estructurados con relaciones (un videojuego → muchas reseñas). MongoDB es NoSQL, ideal para analítica con datos que se actualizan frecuentemente y no necesitan esquema rígido. Además, separar app principal de analítica permite que si una BD falla, la otra siga funcionando.</p></div></div>
+
+    <div class="accordion"><div class="accordion-header" onclick="toggleAccordion(this)">¿Cómo se comunican PHP y Flask? <span class="arrow">▼</span></div><div class="accordion-body"><p>Mediante una API REST sobre HTTP. PHP actúa como cliente HTTP y envía peticiones a los endpoints de Flask usando cURL. Los datos se intercambian en formato JSON. Esta comunicación es independiente del lenguaje: PHP no sabe que Flask está en Python, solo conoce las URLs y el formato de los datos.</p></div></div>
+
+    <div class="accordion"><div class="accordion-header" onclick="toggleAccordion(this)">¿Qué es PDO y por qué lo usaste? <span class="arrow">▼</span></div><div class="accordion-body"><p>PDO (PHP Data Objects) es una capa de abstracción de base de datos. Permite usar diferentes motores con la misma sintaxis. Su principal ventaja de seguridad son las consultas preparadas (prepare + bindParam) que evitan inyección SQL al separar la estructura SQL de los datos del usuario.</p></div></div>
+
+    <div class="accordion"><div class="accordion-header" onclick="toggleAccordion(this)">¿Cómo evitaste la inyección SQL? <span class="arrow">▼</span></div><div class="accordion-body"><p>Usando consultas preparadas de PDO. Los valores del usuario nunca se concatenan en la consulta SQL. Se usan marcadores (:nombre, :genero) que PDO reemplaza de forma segura. El motor de BD recibe estructura y datos por separado, haciendo imposible modificar la estructura de la consulta.</p></div></div>
+
+    <div class="accordion"><div class="accordion-header" onclick="toggleAccordion(this)">¿Cómo implementaste las validaciones? <span class="arrow">▼</span></div><div class="accordion-body"><p>Del lado del servidor en PHP. Por cada campo: empty() para obligatoriedad, strlen() para longitudes, is_numeric() para números, checkdate() para fechas válidas. Los errores se almacenan en un array $errores y se muestran junto a cada campo con clases Bootstrap is-invalid.</p></div></div>
+
+    <div class="accordion"><div class="accordion-header" onclick="toggleAccordion(this)">¿Por qué desplegaste en Render? <span class="arrow">▼</span></div><div class="accordion-body"><p>Render ofrece plan gratuito con PostgreSQL administrado, soporte Docker, despliegue automático desde GitHub, certificados SSL, y variables de entorno. Heroku eliminó su plan gratuito, Railway tiene créditos limitados. Render permite ambos servicios (PHP y Flask) en el mismo ecosistema.</p></div></div>
+
+    <div class="accordion"><div class="accordion-header" onclick="toggleAccordion(this)">¿Qué son las variables de entorno? <span class="arrow">▼</span></div><div class="accordion-body"><p>Valores de configuración definidos fuera del código, en el sistema operativo o plataforma cloud. Se usan para datos sensibles (contraseñas, URLs) que no deben ir en el código. En desarrollo local se usan defaults, en producción Render inyecta los reales. Así el mismo código funciona en cualquier entorno.</p></div></div>
+
+    <div class="accordion"><div class="accordion-header" onclick="toggleAccordion(this)">¿Cómo funciona el Dockerfile? <span class="arrow">▼</span></div><div class="accordion-body"><p>Un Dockerfile es un archivo de instrucciones para construir una imagen Docker. Cada instrucción (FROM, RUN, COPY, CMD) crea una "capa". Las capas se cachean: si una instrucción no cambia, Docker reusa la capa anterior. La última instrucción (CMD) define el comando que se ejecuta al iniciar el contenedor.</p></div></div>
+
+    <div class="accordion"><div class="accordion-header" onclick="toggleAccordion(this)">¿Cómo se relacionan las tablas en PostgreSQL? <span class="arrow">▼</span></div><div class="accordion-body"><p>La tabla resenas tiene una FOREIGN KEY que referencia videojuegos. Esto crea una relación "uno a muchos": un videojuego → muchas reseñas. ON DELETE CASCADE asegura que al borrar un juego, sus reseñas también se borren, manteniendo integridad referencial.</p></div></div>
+
+    <div class="accordion"><div class="accordion-header" onclick="toggleAccordion(this)">¿Qué hace POST /api/videojuegos? <span class="arrow">▼</span></div><div class="accordion-body"><p>Recibe datos de una reseña (videojuego_id, calificacion, nombre) y actualiza estadísticas en MongoDB. Si es la primera reseña: crea documento con total_resenas=1. Si ya existe: incrementa contador, suma la calificación, recalcula promedio = suma_calificaciones / total_resenas. Responde 201 Created.</p></div></div>
+
+    <div class="accordion"><div class="accordion-header" onclick="toggleAccordion(this)">¿Cómo documentaste las pruebas? <span class="arrow">▼</span></div><div class="accordion-body"><p>Selenium: comentarios en el propio archivo .py explicando cada paso. Locust: reporte HTML con gráficos y tablas de tiempos, throughput y errores. Postman: collection con test scripts en JavaScript que validan códigos HTTP, estructura JSON y contenido de respuestas.</p></div></div>
+
+    <div class="accordion"><div class="accordion-header" onclick="toggleAccordion(this)">¿Qué aprendiste con este proyecto? <span class="arrow">▼</span></div><div class="accordion-body"><p>Aprendí a diseñar una arquitectura de microservicios simple con dos aplicaciones independientes comunicadas vía API REST. Trabajé con bases de datos SQL y NoSQL simultáneamente, contenericé aplicaciones con Docker, desplegué en la nube con Render, y realicé pruebas automatizadas con Selenium, de carga con Locust, y de integración con Postman.</p></div></div>
+  </section>
+
+  <!-- 13. QUIZ INTERACTIVO -->
+  <section class="section" id="quiz">
+    <h2 class="section-title"><span class="emoji">🎯</span> 13. Quiz Interactivo - ¿Cuánto aprendiste?</h2>
+    <p style="color:var(--text2);margin-bottom:1rem;font-size:.85rem">Selecciona la respuesta correcta en cada pregunta. Al final verás tu puntuación.</p>
+    <div id="quizContainer"></div>
+    <div id="quizScore" class="quiz-score" style="display:none"></div>
+    <button onclick="resetQuiz()" style="display:none;margin:0 auto;padding:.75rem 2rem;background:var(--accent);color:#0f172a;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:.9rem" id="quizReset">Reintentar Quiz</button>
+  </section>
+
+</main>
+
+<!-- BACK TO TOP & MEMORY BUTTON -->
+<button class="btt" id="btt" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Volver arriba">↑</button>
+<button class="memory-btn" onclick="openMemory()" title="Tus flashcards de memoria">🧠 Flashcards</button>
+
+<!-- MEMORY/FLASHCARD MODAL -->
+<div class="memory-modal" id="memoryModal" onclick="if(event.target===this)closeMemory()">
+  <div class="memory-content">
+    <h3>🧠 Tus Flashcards de Repaso</h3>
+    <p style="color:var(--text2);font-size:.8rem;margin-bottom:1rem">Agrega conceptos que quieras memorizar. Haz clic en la tarjeta para voltearla.</p>
+    <div style="display:flex;gap:.5rem;margin-bottom:1rem">
+      <input type="text" id="fcFront" placeholder="Concepto (ej: PDO)" style="flex:1;padding:.5rem;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:.8rem">
+      <input type="text" id="fcBack" placeholder="Definición" style="flex:1;padding:.5rem;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:.8rem">
+      <button onclick="addFlashcard()" style="padding:.5rem 1rem;background:var(--accent);color:#0f172a;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:.8rem">+</button>
+    </div>
+    <div id="flashcardDeck"></div>
+    <button onclick="closeMemory()" style="margin-top:1rem;padding:.5rem 1.5rem;background:var(--bg3);border:none;color:var(--text);border-radius:8px;cursor:pointer;width:100%;font-weight:600">Cerrar</button>
+  </div>
+</div>
+
+<script>
+// ============ THEME TOGGLE ============
+function toggleTheme(){
+  document.body.classList.toggle('light');
+  localStorage.setItem('theme', document.body.classList.contains('light')?'light':'dark');
+}
+if(localStorage.getItem('theme')==='light'||(!localStorage.getItem('theme')&&window.matchMedia('(prefers-color-scheme:light)').matches)){document.body.classList.add('light')}
+
+// ============ ACCORDION ============
+function toggleAccordion(header){
+  const accordion = header.parentElement;
+  accordion.classList.toggle('open');
+}
+
+// ============ BACK TO TOP ============
+window.addEventListener('scroll',()=>{
+  document.getElementById('btt').classList.toggle('visible',window.scrollY>400);
+});
+
+// ============ SEARCH ============
+function searchContent(){
+  const term = document.getElementById('searchBox').value.toLowerCase();
+  const results = document.getElementById('searchResults');
+  const main = document.getElementById('mainContent');
+  if(!term){results.innerHTML='';resetHighlights();return}
+  const sections = main.querySelectorAll('.section');
+  let found = 0;
+  resetHighlights();
+  sections.forEach(s=>{
+    const text = s.textContent.toLowerCase();
+    if(text.includes(term)){
+      found++;
+      const headers = s.querySelectorAll('.accordion-header');
+      headers.forEach(h=>h.parentElement.classList.add('open'));
+      s.scrollIntoView({behavior:'smooth',block:'center'});
+    }
+  });
+  if(found>0){
+    results.innerHTML = `🔍 ${found} sección(es) encontradas para "<strong>${term}</strong>". Se expandieron automáticamente.`;
+    results.style.color = 'var(--green)';
+  } else {
+    results.innerHTML = `❌ No se encontró "<strong>${term}</strong>".`;
+    results.style.color = 'var(--red)';
+  }
+}
+function resetHighlights(){
+  document.getElementById('searchResults').innerHTML='';
+}
+
+// Active nav link on scroll
+const navLinks = document.querySelectorAll('.nav-links a');
+window.addEventListener('scroll',()=>{
+  let current='';
+  document.querySelectorAll('.section').forEach(s=>{
+    if(window.scrollY >= s.offsetTop-100) current = s.id;
+  });
+  navLinks.forEach(a=>{a.classList.remove('active');if(a.getAttribute('href')==='#'+current)a.classList.add('active')});
+});
+
+// ============ FLASHCARDS ============
+let flashcards = JSON.parse(localStorage.getItem('flashcards')||'[]');
+let fcIndex = 0;
+
+function saveFlashcards(){localStorage.setItem('flashcards',JSON.stringify(flashcards))}
+function addFlashcard(){
+  const front=document.getElementById('fcFront').value.trim();
+  const back=document.getElementById('fcBack').value.trim();
+  if(!front||!back)return;
+  flashcards.push({front,back});
+  document.getElementById('fcFront').value='';
+  document.getElementById('fcBack').value='';
+  saveFlashcards();
+  renderFlashcards();
+}
+function deleteFlashcard(i){flashcards.splice(i,1);saveFlashcards();renderFlashcards()}
+function renderFlashcards(){
+  const deck = document.getElementById('flashcardDeck');
+  if(!flashcards.length){deck.innerHTML='<p style="color:var(--text2);font-size:.8rem">No hay flashcards aún. Agrega conceptos arriba.</p>';return}
+  if(fcIndex>=flashcards.length)fcIndex=0;
+  deck.innerHTML = `
+    <div class="flashcard">
+      <div class="flashcard-inner" onclick="this.classList.toggle('flipped')">
+        <div class="flashcard-front">${flashcards[fcIndex].front}</div>
+        <div class="flashcard-back">${flashcards[fcIndex].back}</div>
+      </div>
+    </div>
+    <div class="flashcard-counter">Tarjeta ${fcIndex+1} de ${flashcards.length}</div>
+    <div style="display:flex;gap:.5rem;justify-content:center;margin-top:.5rem">
+      <button onclick="fcIndex=(fcIndex-1+flashcards.length)%flashcards.length;renderFlashcards()" style="padding:.4rem 1rem;background:var(--bg3);border:none;color:var(--text);border-radius:6px;cursor:pointer">◀ Anterior</button>
+      <button onclick="fcIndex=(fcIndex+1)%flashcards.length;renderFlashcards()" style="padding:.4rem 1rem;background:var(--bg3);border:none;color:var(--text);border-radius:6px;cursor:pointer">Siguiente ▶</button>
+    </div>
+    <div style="margin-top:.5rem;text-align:center">
+      <span onclick="deleteFlashcard(fcIndex)" style="color:var(--red);cursor:pointer;font-size:.75rem">🗑 Eliminar esta tarjeta</span>
+    </div>
+  `;
+}
+function openMemory(){document.getElementById('memoryModal').classList.add('open');renderFlashcards()}
+function closeMemory(){document.getElementById('memoryModal').classList.remove('open')}
+
+// ============ QUIZ ============
+const quizData = [
+  {q:"¿Cuántas aplicaciones tiene este proyecto?",opts:["1","2","3","4"],ans:1},
+  {q:"¿Qué base de datos usa la aplicación PHP?",opts:["MongoDB","MySQL","PostgreSQL","SQLite"],ans:2},
+  {q:"¿Qué base de datos usa la API Flask?",opts:["MongoDB","MySQL","PostgreSQL","SQLite"],ans:0},
+  {q:"¿Cómo se comunican PHP y Flask?",opts:["WebSockets","FTP","API REST con HTTP","Correo electrónico"],ans:2},
+  {q:"¿Qué herramienta se usa para prevenir inyección SQL?",opts:["htmlspecialchars()","PDO + consultas preparadas","Bootstrap","cURL"],ans:1},
+  {q:"¿Qué hace ON DELETE CASCADE?",opts:["Borra la BD","Borra reseñas al borrar un juego","Crea un índice","Encripta datos"],ans:1},
+  {q:"¿Qué servidor usa Flask en producción?",opts:["Apache","NGINX","Gunicorn","IIS"],ans:2},
+  {q:"¿Qué endpoint registra datos en MongoDB?",opts:["GET /api/estadisticas","POST /api/videojuegos","GET /api/mejores","POST /api/resenas"],ans:1},
+  {q:"¿Cuántas pruebas de Postman se ejecutaron?",opts:["4","6","9","12"],ans:2},
+  {q:"¿Qué es SERIAL en PostgreSQL?",opts:["Un tipo de texto","Autoincremental","Una llave foránea","Un índice"],ans:1}
+];
+let quizAnswered = new Array(quizData.length).fill(false);
+let quizScore = 0;
+
+function renderQuiz(){
+  const container = document.getElementById('quizContainer');
+  container.innerHTML = quizData.map((item,i)=>`
+    <div class="quiz-card" id="q${i}">
+      <div class="quiz-q">${i+1}. ${item.q}</div>
+      ${item.opts.map((opt,j)=>`<button class="quiz-opt" onclick="answerQuiz(${i},${j},this)">${opt}</button>`).join('')}
+      <div class="quiz-feedback" id="fb${i}"></div>
+    </div>
+  `).join('');
+}
+function answerQuiz(qIdx,optIdx,btn){
+  if(quizAnswered[qIdx])return;
+  quizAnswered[qIdx]=true;
+  const correct = quizData[qIdx].ans === optIdx;
+  const feedback = document.getElementById(`fb${qIdx}`);
+  const btns = document.querySelectorAll(`#q${qIdx} .quiz-opt`);
+  btns.forEach(b=>b.disabled=true);
+  btns[quizData[qIdx].ans].classList.add('correct');
+  if(!correct)btn.classList.add('wrong');
+  if(correct)quizScore++;
+  feedback.textContent = correct ? '✅ ¡Correcto!' : '❌ Incorrecto';
+  feedback.classList.add('show');
+  feedback.style.color = correct ? 'var(--green)' : 'var(--red)';
+  if(quizAnswered.every(a=>a))showQuizResult();
+}
+function showQuizResult(){
+  const pct = Math.round(quizScore/quizData.length*100);
+  const scoreEl = document.getElementById('quizScore');
+  scoreEl.style.display='block';
+  scoreEl.innerHTML = `Tu puntuación: ${quizScore}/${quizData.length} (${pct}%) ${pct>=80?'🎉 ¡Excelente!':pct>=60?'👍 ¡Bien!':'📚 Sigue repasando'}`;
+  document.getElementById('quizReset').style.display='block';
+}
+function resetQuiz(){
+  quizAnswered = new Array(quizData.length).fill(false);
+  quizScore = 0;
+  document.getElementById('quizScore').style.display='none';
+  document.getElementById('quizReset').style.display='none';
+  renderQuiz();
+}
+renderQuiz();
+
+// Keyboard shortcut for search
+document.addEventListener('keydown',(e)=>{
+  if((e.ctrlKey||e.metaKey)&&e.key==='k'){e.preventDefault();document.getElementById('searchBox').focus()}
+  if(e.key==='Escape'){closeMemory()}
+});
+</script>
+</body>
+</html>
