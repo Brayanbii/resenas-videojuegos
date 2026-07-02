@@ -1,0 +1,1163 @@
+=====================================================================
+  GUIA EXTENSA DEL PROYECTO - RESEÑAS DE VIDEOJUEGOS
+  Arquitectura: PHP (PostgreSQL) + Flask (MongoDB)
+  =====================================================================
+
+INDICE:
+
+  1.  VISION GENERAL DEL PROYECTO
+  2.  ARQUITECTURA DEL SISTEMA
+  3.  BASE DE DATOS POSTGRESQL
+  4.  BASE DE DATOS MONGODB ATLAS
+  5.  APLICACION PHP - ARCHIVO POR ARCHIVO
+  6.  API FLASK - ARCHIVO POR ARCHIVO
+  7.  FLUJO COMPLETO DE UNA RESEÑA
+  8.  DOCKER Y DESPLIEGUE EN RENDER
+  9.  PRUEBAS AUTOMATIZADAS (SELENIUM)
+  10. PRUEBAS DE CARGA (LOCUST)
+  11. PRUEBAS DE INTEGRACION (POSTMAN)
+  12. VARIABLES DE ENTORNO Y CONFIGURACION
+  13. PREGUNTAS FRECUENTES QUE PUEDE HACER EL PROFESOR
+  14. GLOSARIO DE TERMINOS TECNICOS
+
+
+=====================================================================
+1. VISION GENERAL DEL PROYECTO
+=====================================================================
+
+Este proyecto es un sistema de reseñas de videojuegos compuesto por
+DOS aplicaciones separadas que se comunican entre sí mediante una API REST.
+
+La aplicacion principal esta hecha en PHP y permite a los usuarios:
+- Registrar nuevos videojuegos en un catalogo
+- Escribir reseñas con calificaciones de 1 a 5 estrellas
+- Consultar el catalogo completo con todas las reseñas
+- Ver estadisticas generadas por el servicio de analitica
+
+El servicio de analitica esta hecho en Python con Flask y se encarga de:
+- Recibir datos de reseñas desde la aplicacion PHP
+- Almacenar y procesar esos datos en MongoDB
+- Generar estadisticas: total de juegos, total de reseñas, promedios
+- Generar rankings de los videojuegos mejor calificados
+
+Ambos sistemas estan desplegados en Render (plataforma cloud gratuita)
+usando Docker para garantizar que funcionen igual en cualquier entorno.
+La base de datos PostgreSQL tambien esta en Render, mientras que MongoDB
+esta en MongoDB Atlas (servicio cloud gratuito de MongoDB).
+
+
+=====================================================================
+2. ARQUITECTURA DEL SISTEMA
+=====================================================================
+
+DIAGRAMA DE FLUJO:
+
+  USUARIO (Navegador Web)
+       |
+       | HTTPS
+       v
+  +------------------+       +-------------------+
+  |  APLICACION PHP  |       |   API FLASK       |
+  |  (Render)        |       |   (Render)        |
+  |                  |       |                   |
+  |  formularios     | HTTP  |  POST /videojuegos|
+  |  catalogo        |------>|  GET /estadisticas|
+  |  estadisticas    | JSON  |  GET /mejores     |
+  |                  |       |                   |
+  +--------+---------+       +--------+----------+
+           |                          |
+           | SQL (PDO)               | PyMongo
+           v                          v
+  +------------------+       +-------------------+
+  |  PostgreSQL      |       |  MongoDB Atlas    |
+  |  (Render)        |       |  (Cloud)          |
+  |                  |       |                   |
+  |  videojuegos     |       |  estadisticas     |
+  |  resenas         |       |  _videojuegos     |
+  +------------------+       +-------------------+
+
+COMPONENTES DEL SISTEMA:
+
+  1. Aplicacion PHP (resenas-php.onrender.com)
+     - Lenguaje: PHP 8.2
+     - Servidor: Apache (dentro de Docker)
+     - Comunicacion BD: PDO (PHP Data Objects)
+     - Estilos: Bootstrap 5 (CDN)
+     - Archivos: 8 archivos PHP + 1 script SQL
+
+  2. API Flask (resenas-flask.onrender.com)
+     - Lenguaje: Python 3.11
+     - Framework: Flask
+     - Servidor: Gunicorn (servidor WSGI de produccion)
+     - Comunicacion BD: PyMongo
+     - Archivos: 1 archivo Python (app.py)
+
+  3. PostgreSQL (Render managed database)
+     - Motor: PostgreSQL 16
+     - Tablas: videojuegos, resenas
+     - Conexion: PDO desde PHP con variables de entorno
+
+  4. MongoDB Atlas (Cloud)
+     - Motor: MongoDB 7.0
+     - Coleccion: estadisticas_videojuegos
+     - Conexion: PyMongo con URI mongodb+srv://
+
+¿POR QUE DOS BASES DE DATOS DIFERENTES?
+
+  PostgreSQL (SQL) se usa para la aplicacion principal porque:
+  - Los datos son estructurados (siempre mismos campos)
+  - Hay relaciones entre tablas (un videojuego tiene muchas reseñas)
+  - Necesitamos integridad referencial (FK, ON DELETE CASCADE)
+  - Las consultas con JOIN son eficientes en SQL
+
+  MongoDB (NoSQL) se usa para analitica porque:
+  - Los datos son agregados/calculados (sumas, promedios, conteos)
+  - No necesitamos esquema fijo (podemos agregar campos nuevos)
+  - Es mas rapido para operaciones de escritura frecuentes
+  - Las agregaciones (pipeline) son muy potentes para estadisticas
+
+
+=====================================================================
+3. BASE DE DATOS POSTGRESQL
+=====================================================================
+
+3.1. TABLA: videojuegos
+
+  CREATE TABLE videojuegos (
+      id SERIAL PRIMARY KEY,
+      nombre VARCHAR(200) NOT NULL,
+      genero VARCHAR(100) NOT NULL,
+      plataforma VARCHAR(100) NOT NULL,
+      descripcion TEXT,
+      fecha_lanzamiento DATE,
+      fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+
+  EXPLICACION DE CADA CAMPO:
+
+  - id SERIAL PRIMARY KEY:
+    SERIAL es un tipo especial de PostgreSQL que genera numeros
+    autoincrementales automaticamente (1, 2, 3...). PRIMARY KEY
+    significa que es el identificador unico de cada fila. No puede
+    haber dos videojuegos con el mismo ID. El motor de BD crea
+    automaticamente un indice para busquedas rapidas por ID.
+
+  - nombre VARCHAR(200) NOT NULL:
+    VARCHAR(200) = texto de longitud variable, maximo 200 caracteres.
+    Se eligio VARCHAR en lugar de TEXT porque los nombres no son
+    muy largos y VARCHAR es mas eficiente en espacio. NOT NULL
+    significa que este campo es obligatorio.
+
+  - genero VARCHAR(100) NOT NULL:
+    Almacena el genero del juego (Accion, RPG, Aventura, etc.).
+    100 caracteres es suficiente para cualquier genero.
+
+  - plataforma VARCHAR(100) NOT NULL:
+    Plataforma donde se juega (PC, PS5, Nintendo Switch, etc.).
+
+  - descripcion TEXT:
+    TEXT permite almacenar texto de longitud ilimitada (hasta 1GB).
+    Se usa en lugar de VARCHAR porque una descripcion puede ser
+    muy larga. Este campo NO es obligatorio (no tiene NOT NULL).
+
+  - fecha_lanzamiento DATE:
+    Tipo DATE almacena solo fecha (año-mes-dia) sin hora.
+    Es mas eficiente que TIMESTAMP si no necesitamos la hora.
+
+  - fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP:
+    TIMESTAMP almacena fecha y hora. DEFAULT CURRENT_TIMESTAMP
+    hace que si no se especifica un valor, se use automaticamente
+    la fecha y hora actual del servidor al insertar.
+
+3.2. TABLA: resenas
+
+  CREATE TABLE resenas (
+      id SERIAL PRIMARY KEY,
+      videojuego_id INTEGER NOT NULL,
+      nombre_usuario VARCHAR(150) NOT NULL,
+      calificacion INTEGER NOT NULL CHECK (calificacion >= 1 AND calificacion <= 5),
+      comentario TEXT,
+      fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT fk_resena_videojuego
+          FOREIGN KEY (videojuego_id)
+          REFERENCES videojuegos(id)
+          ON DELETE CASCADE
+  );
+
+  EXPLICACION DE CADA CAMPO Y RESTRICCION:
+
+  - videojuego_id INTEGER NOT NULL:
+    Guarda el ID del videojuego al que pertenece esta reseña.
+    Es una LLAVE FORANEA (FOREIGN KEY) que referencia la tabla
+    videojuegos.
+
+  - calificacion INTEGER CHECK (calificacion >= 1 AND calificacion <= 5):
+    El CHECK es una RESTRICCION que impide guardar valores fuera
+    del rango 1-5. Si alguien intenta insertar calificacion=6,
+    PostgreSQL rechaza la operacion con un error. Esto garantiza
+    la integridad de los datos a nivel de base de datos.
+
+  - CONSTRAINT fk_resena_videojuego FOREIGN KEY...:
+    Establece la relacion entre las dos tablas. La llave foranea
+    garantiza que no se pueda insertar una reseña para un videojuego
+    que no existe (si videojuego_id=999 y no hay videojuego con
+    ese ID, la BD rechaza la insercion).
+
+  - ON DELETE CASCADE:
+    Si se elimina un videojuego, automaticamente se eliminan
+    TODAS sus reseñas. Esto evita tener reseñas "huerfanas"
+    que apuntan a un videojuego que ya no existe.
+
+3.3. ¿POR QUE SE USAN ESTOS TIPOS DE DATOS?
+
+  - VARCHAR vs TEXT: VARCHAR es para textos cortos con limite conocido,
+    TEXT para textos largos sin limite predecible. VARCHAR ocupa menos
+    espacio y es mas rapido en busquedas.
+
+  - INTEGER vs SMALLINT: INTEGER usa 4 bytes y permite valores hasta
+    2 mil millones. SMALLINT usa 2 bytes. Se uso INTEGER porque es el
+    tipo por defecto para IDs y contadores.
+
+  - DATE vs TIMESTAMP: DATE ocupa 4 bytes, TIMESTAMP ocupa 8 bytes.
+    Para fecha de lanzamiento solo necesitamos el dia, no la hora.
+
+  - SERIAL: Es un "atajo" de PostgreSQL que combina INTEGER + secuencia
+    autoincremental. Equivale a crear una secuencia y usarla como
+    valor por defecto.
+
+
+=====================================================================
+4. BASE DE DATOS MONGODB ATLAS
+=====================================================================
+
+4.1. ESTRUCTURA DEL DOCUMENTO
+
+  Base de datos: analitica_videojuegos
+  Coleccion: estadisticas_videojuegos
+
+  Cada documento en la coleccion tiene esta estructura:
+
+  {
+      "videojuego_id": 1,
+      "nombre_videojuego": "The Legend of Zelda: Tears of the Kingdom",
+      "genero": "No especificado",
+      "total_resenas": 5,
+      "suma_calificaciones": 22,
+      "promedio_calificacion": 4.4,
+      "primera_resena": "2026-07-01T00:00:00Z",
+      "ultima_resena": "2026-07-01T12:00:00Z",
+      "ultima_calificacion": 5
+  }
+
+4.2. EXPLICACION DE CADA CAMPO
+
+  - videojuego_id: Guarda el mismo ID que en PostgreSQL. Esto permite
+    relacionar datos entre ambas bases de datos.
+
+  - total_resenas: Contador de cuantas reseñas ha recibido este juego.
+    Se incrementa en 1 cada vez que llega una nueva reseña.
+
+  - suma_calificaciones: Suma acumulada de todas las calificaciones.
+    Sirve para calcular el promedio sin necesidad de guardar cada
+    calificacion individual.
+
+  - promedio_calificacion: Se calcula como suma_calificaciones / total_resenas.
+    Se actualiza cada vez que llega una nueva reseña.
+
+4.3. ¿POR QUE GUARDAR SUMA Y CONTADOR EN LUGAR DE CADA RESEÑA?
+
+  Es un patron llamado "aggregation by accumulation". En lugar de
+  guardar cada reseña y recalcular el promedio desde cero cada vez,
+  guardamos el acumulado. Ventajas:
+  - Consultas mas rapidas (leer 1 documento vs leer N documentos)
+  - Menos espacio de almacenamiento
+  - El promedio se calcula con una simple division
+
+4.4. OPERACIONES MONGODB USADAS
+
+  - find_one(): Busca un documento. Equivalente a SELECT...WHERE en SQL.
+  - insert_one(): Inserta un documento nuevo. Equivalente a INSERT.
+  - update_one(): Actualiza campos de un documento. Equivalente a UPDATE.
+  - count_documents(): Cuenta documentos. Equivalente a COUNT(*).
+  - aggregate(): Realiza operaciones complejas con pipeline.
+    Ejemplo: $group para agrupar y $sum para sumar campos.
+
+  Pipeline de agregacion usado en /api/estadisticas:
+
+  [
+      {
+          '$group': {
+              '_id': None,
+              'total_resenas': {'$sum': '$total_resenas'},
+              'suma_calificaciones': {'$sum': '$suma_calificaciones'}
+          }
+      }
+  ]
+
+  Este pipeline toma todos los documentos de la coleccion, los agrupa
+  en un solo grupo (_id: None = sin agrupar por campo), y calcula la
+  suma total de reseñas y calificaciones de todos los videojuegos.
+
+
+=====================================================================
+5. APLICACION PHP - ARCHIVO POR ARCHIVO
+=====================================================================
+
+5.1. conexion.php
+
+  PROPOSITO: Establecer la conexion con PostgreSQL usando PDO.
+
+  FUNCIONAMIENTO:
+  - Lee variables de entorno (getenv) para obtener host, puerto,
+    nombre de BD, usuario y contraseña.
+  - Si no hay variables de entorno (desarrollo local), usa valores
+    por defecto (localhost, postgres, etc.)
+  - Construye un DSN (Data Source Name) con formato:
+    "pgsql:host=DIRECCION;port=PUERTO;dbname=NOMBRE_BD"
+  - Crea objeto PDO con manejo de errores por excepciones
+  - Configura fetch mode como array asociativo
+
+  VARIABLES IMPORTANTES:
+  - $host_bd: direccion del servidor PostgreSQL
+  - $dsn: cadena de conexion que incluye motor, host, puerto y BD
+  - $conexion_bd: objeto PDO que representa la conexion activa
+  - PDO::ATTR_ERRMODE: controla como se manejan los errores
+  - PDO::FETCH_ASSOC: hace que los resultados se devuelvan como
+    arrays asociativos con nombres de columna como claves
+
+  POSIBLES PREGUNTAS DEL PROFESOR:
+  - ¿Que es PDO y para que sirve?
+    Es una capa de abstraccion de base de datos que permite usar
+    diferentes motores (MySQL, PostgreSQL, SQLite) con la misma
+    sintaxis. Ademas protege contra inyeccion SQL mediante
+    consultas preparadas.
+  - ¿Por que usar variables de entorno?
+    Para no escribir credenciales en el codigo. En desarrollo local
+    se usan valores por defecto, en produccion Render inyecta las
+    variables reales. Asi el mismo codigo funciona en todos lados.
+  - ¿Que pasa si falla la conexion?
+    El bloque try/catch captura la excepcion PDOException y muestra
+    un mensaje de error con die(), deteniendo la ejecucion.
+
+5.2. index.php
+
+  PROPOSITO: Pagina principal con menu de navegacion.
+
+  CARACTERISTICAS:
+  - Barra de navegacion Bootstrap con enlaces a todas las secciones
+  - Tres tarjetas de acceso rapido (registrar juego, reseña, catalogo)
+  - Diseño responsive (se adapta a moviles)
+  - No requiere conexion a BD (es solo HTML)
+
+5.3. registrar_videojuego.php
+
+  PROPOSITO: Formulario para registrar nuevos videojuegos.
+
+  FLUJO DE EJECUCION:
+  1. GET (primera visita): Muestra formulario vacio
+  2. POST (envio): Valida campos, inserta en BD, muestra resultado
+
+  VALIDACIONES POR CAMPO:
+  - nombre: obligatorio (empty), minimo 2 caracteres, maximo 200
+  - genero: obligatorio (select con opciones predefinidas)
+  - plataforma: obligatorio (select con opciones predefinidas)
+  - descripcion: opcional, maximo 2000 caracteres
+  - fecha_lanzamiento: obligatorio, formato valido (checkdate)
+
+  SEGURIDAD:
+  - htmlspecialchars(): convierte < > " ' en entidades HTML para
+    evitar ataques XSS (Cross-Site Scripting)
+  - Consultas preparadas con bindParam(): evita inyeccion SQL
+  - Validacion del lado del servidor (no confiar en HTML5)
+
+  POSIBLES PREGUNTAS DEL PROFESOR:
+  - ¿Por que validar del lado del servidor si HTML5 ya valida?
+    Porque un atacante puede desactivar JavaScript o enviar
+    peticiones HTTP directamente con herramientas como Postman
+    o cURL, saltandose las validaciones del navegador.
+  - ¿Que hace htmlspecialchars()?
+    Convierte caracteres especiales en entidades HTML. Ejemplo:
+    <script>alert('hack')</script> se convierte en texto visible
+    en lugar de ejecutarse como codigo.
+  - ¿Como funciona bindParam()?
+    Separa la estructura SQL de los datos del usuario. PDO envia
+    la estructura y los datos por separado al motor de BD, que
+    los une de forma segura sin posibilidad de inyeccion.
+
+5.4. registrar_resena.php
+
+  PROPOSITO: Formulario para registrar reseñas de videojuegos.
+
+  CARACTERISTICAS ESPECIALES:
+  - El select de videojuegos se llena dinamicamente desde la BD
+  - Al registrar, ademas de guardar en PostgreSQL, envia datos
+    a la API Flask mediante cURL
+  - Valida que el videojuego seleccionado exista en la BD
+
+  FLUJO DE INTEGRACION:
+  1. Usuario llena formulario y envia
+  2. PHP valida los campos
+  3. PHP inserta la reseña en PostgreSQL
+  4. PHP llama a enviar_resena_a_api() que usa cURL para enviar
+     los datos a la API Flask
+  5. Flask recibe los datos y actualiza MongoDB
+
+5.5. catalogo.php
+
+  PROPOSITO: Vista publica del catalogo de videojuegos con reseñas.
+
+  CONSULTA SQL PRINCIPAL:
+  SELECT v.*, 
+         COALESCE(ROUND(AVG(r.calificacion)::numeric, 1), 0) AS promedio,
+         COUNT(r.id) AS total_resenas
+  FROM videojuegos v
+  LEFT JOIN resenas r ON v.id = r.videojuego_id
+  GROUP BY v.id
+  ORDER BY promedio DESC, v.nombre ASC
+
+  EXPLICACION:
+  - LEFT JOIN: incluye videojuegos sin reseñas (su promedio sera 0)
+  - AVG(): calcula el promedio de calificaciones
+  - ROUND(..., 1): redondea a 1 decimal
+  - COALESCE(..., 0): si el promedio es NULL (sin reseñas), usa 0
+  - GROUP BY v.id: agrupa por videojuego para que AVG funcione
+  - ORDER BY promedio DESC: juegos mejor calificados primero
+
+  ESTRELLAS VISUALES:
+  Se usa un bucle for con caracteres Unicode: ★ (estrella llena,
+  U+2605) y ☆ (estrella vacia, U+2606). Se redondea el promedio
+  para decidir cuantas estrellas llenas mostrar.
+
+5.6. estadisticas.php
+
+  PROPOSITO: Muestra estadisticas desde la API Flask.
+
+  FUNCIONAMIENTO:
+  - Llama a consultar_estadisticas_api() que hace GET a Flask
+  - Llama a consultar_mejores_videojuegos_api() para el ranking
+  - Si la API no responde, muestra mensaje de advertencia
+  - Muestra los datos en formato de tarjetas Bootstrap
+
+5.7. funciones_api.php
+
+  PROPOSITO: Funciones para comunicarse con la API Flask.
+
+  CONTIENE 3 FUNCIONES:
+
+  a) enviar_resena_a_api()
+     - Metodo: POST a /api/videojuegos
+     - Usa: cURL (biblioteca nativa de PHP)
+     - Envia: JSON con videojuego_id, calificacion, nombre_videojuego
+     - ¿Por que cURL? Porque soporta POST, headers personalizados,
+       timeout, y manejo de errores mas completo que file_get_contents.
+
+  b) consultar_estadisticas_api()
+     - Metodo: GET a /api/estadisticas
+     - Usa: file_get_contents() con stream context
+     - Retorna: array asociativo PHP o null si falla
+
+  c) consultar_mejores_videojuegos_api()
+     - Metodo: GET a /api/mejores-videojuegos
+     - Usa: file_get_contents() con stream context
+     - Retorna: array de videojuegos ordenados por calificacion
+
+  POSIBLES PREGUNTAS DEL PROFESOR:
+  - ¿Por que usar cURL para POST y file_get_contents para GET?
+    cURL es mas potente pero tambien mas complejo. Para GET simples,
+    file_get_contents es suficiente y mas facil de leer. Para POST
+    con JSON y headers personalizados, cURL es necesario.
+  - ¿Que pasa si la API Flask no esta disponible?
+    Las funciones devuelven null, y las paginas que las usan
+    (estadisticas.php) muestran un mensaje de "No se pudo conectar".
+    La aplicacion principal sigue funcionando aunque la API falle.
+  - ¿Como se envia JSON desde PHP?
+    json_encode() convierte un array PHP en string JSON. cURL envia
+    este string con el header Content-Type: application/json.
+
+5.8. setup_db.php
+
+  PROPOSITO: Script para crear las tablas de PostgreSQL la primera vez.
+
+  FUNCIONAMIENTO:
+  - Lee el archivo script.sql
+  - Elimina lineas de comentarios (que empiezan con --)
+  - Separa las instrucciones SQL por punto y coma (;)
+  - Ejecuta cada instruccion con PDO::exec()
+  - Verifica que las tablas se crearon correctamente
+
+  PRECAUCION: Este archivo debe ejecutarse UNA SOLA VEZ y luego
+  eliminarse del servidor por seguridad.
+
+
+=====================================================================
+6. API FLASK - ARCHIVO POR ARCHIVO
+=====================================================================
+
+6.1. app.py
+
+  PROPOSITO: API REST que recibe datos de PHP y genera estadisticas.
+
+  ESTRUCTURA GENERAL:
+  - Importa Flask (framework web), PyMongo (conexion MongoDB),
+    os (variables de entorno), datetime (fechas)
+  - Crea la aplicacion Flask (aplicacion = Flask(__name__))
+  - Conecta a MongoDB usando la URI de conexion
+  - Define 4 rutas (endpoints)
+
+  CONEXION A MONGODB:
+
+  uri_mongo = os.environ.get('MONGO_URI', 'mongodb://localhost:27017/')
+  cliente_mongo = MongoClient(uri_mongo)
+  base_datos = cliente_mongo['analitica_videojuegos']
+  coleccion_estadisticas = base_datos['estadisticas_videojuegos']
+
+  PyMongo crea automaticamente la base de datos y la coleccion
+  si no existen al momento de insertar el primer documento.
+  La URI de conexion viene de variable de entorno MONGO_URI
+  que en Render se configura en el dashboard del servicio.
+
+  ENDPOINT 1: Ruta raiz (/)
+  - Metodo: GET
+  - Proposito: Verificar que la API esta funcionando
+  - Respuesta: JSON con mensaje de bienvenida y lista de endpoints
+
+  ENDPOINT 2: POST /api/videojuegos
+  - Metodo: POST
+  - Proposito: Registrar una reseña y actualizar estadisticas
+  - Recibe: JSON con videojuego_id, calificacion, nombre_videojuego
+  - Validacion: Campos obligatorios, calificacion entre 1 y 5
+  - Logica:
+    1. Busca el videojuego en MongoDB por videojuego_id
+    2. Si existe: incrementa total_resenas, suma_calificaciones,
+       recalcula promedio, actualiza con update_one()
+    3. Si no existe: crea documento nuevo con insert_one()
+  - Respuesta: 201 Created con mensaje de confirmacion
+
+  ENDPOINT 3: GET /api/estadisticas
+  - Metodo: GET
+  - Proposito: Devolver estadisticas generales
+  - Calcula:
+    - Total de videojuegos registrados (count_documents)
+    - Total de reseñas acumuladas (suma de total_resenas de todos)
+    - Promedio general (suma_calificaciones / total_resenas)
+    - Videojuego mejor calificado (find_one ordenado por promedio)
+    - Videojuego mas reseñado (find_one ordenado por total_resenas)
+  - Respuesta: JSON con todas las estadisticas
+
+  ENDPOINT 4: GET /api/mejores-videojuegos
+  - Metodo: GET
+  - Proposito: Ranking de videojuegos mejor calificados
+  - Logica: find() ordenado por promedio_calificacion descendente
+  - Excluye el _id de MongoDB del resultado
+  - Respuesta: JSON array con los videojuegos ordenados
+
+  PUNTO DE ENTRADA (if __name__ == '__main__'):
+  - Lee el puerto de variable PORT (Render lo asigna)
+  - Ejecuta con host='0.0.0.0' (acepta conexiones externas)
+  - debug=True solo en desarrollo (en produccion Render lo ignora
+    porque usa Gunicorn, no Flask directamente)
+
+  DESPLIEGUE EN PRODUCCION:
+  Render ejecuta: gunicorn app:aplicacion --bind 0.0.0.0:$PORT
+  - gunicorn: servidor WSGI profesional para Python
+  - app:aplicacion: modulo app, variable aplicacion (la app Flask)
+  - --bind 0.0.0.0:$PORT: escucha en todas las interfaces, puerto
+    asignado por Render
+
+6.2. requirements.txt
+
+  Contiene las dependencias Python necesarias:
+  - Flask==3.0.0: framework web
+  - pymongo==4.6.1: driver de MongoDB para Python
+  - gunicorn==21.2.0: servidor WSGI de produccion
+
+
+=====================================================================
+7. FLUJO COMPLETO DE UNA RESEÑA
+=====================================================================
+
+Cuando un usuario registra una reseña, ocurre esto en orden:
+
+  PASO 1: USUARIO LLENA EL FORMULARIO
+  El usuario accede a registrar_resena.php, selecciona un videojuego
+  del menu desplegable (cargado desde PostgreSQL), escribe su nombre,
+  elige una calificacion de 1 a 5 estrellas, y opcionalmente escribe
+  un comentario. Hace clic en "Registrar Reseña".
+
+  PASO 2: PHP RECIBE LOS DATOS (POST)
+  El formulario se envia por metodo POST a registrar_resena.php.
+  PHP recibe los datos en el array superglobal $_POST.
+
+  PASO 3: VALIDACION DE CAMPOS
+  - Verifica que videojuego_id no este vacio
+  - Verifica que el videojuego exista en PostgreSQL
+  - Verifica que nombre_usuario tenga al menos 3 caracteres
+  - Verifica que calificacion sea un numero entre 1 y 5
+  - Verifica que el comentario no exceda 2000 caracteres
+
+  Si alguna validacion falla, se recarga el formulario mostrando
+  los errores en rojo junto a cada campo.
+
+  PASO 4: INSERCION EN POSTGRESQL
+  Si todas las validaciones pasan, se ejecuta una consulta INSERT
+  preparada con PDO. Ejemplo:
+
+  INSERT INTO resenas (videojuego_id, nombre_usuario, calificacion, comentario)
+  VALUES (:videojuego_id, :nombre_usuario, :calificacion, :comentario)
+
+  Los marcadores :videojuego_id, :nombre_usuario, etc. se reemplazan
+  de forma segura con los valores reales mediante bindParam().
+
+  PASO 5: NOTIFICACION A LA API FLASK
+  Inmediatamente despues de guardar en PostgreSQL, PHP ejecuta la
+  funcion enviar_resena_a_api() que:
+
+  a) Prepara un array PHP con los datos:
+     {
+       "videojuego_id": 1,
+       "calificacion": 4,
+       "nombre_videojuego": "Zelda"
+     }
+
+  b) Convierte el array a JSON con json_encode()
+
+  c) Configura cURL para hacer POST a:
+     https://resenas-flask.onrender.com/api/videojuegos
+
+  d) Envia la peticion con header Content-Type: application/json
+
+  PASO 6: FLASK RECIBE Y ACTUALIZA MONGODB
+  El endpoint POST /api/videojuegos recibe la peticion:
+
+  a) request.get_json() convierte el JSON en un diccionario Python
+
+  b) Valida que videojuego_id y calificacion esten presentes
+
+  c) Busca el documento en MongoDB con find_one({videojuego_id: ...})
+
+  d) Si EXISTE el documento:
+     - nuevo_total = total_resenas + 1
+     - nueva_suma = suma_calificaciones + calificacion
+     - nuevo_promedio = nueva_suma / nuevo_total
+     - update_one() actualiza los campos
+
+  e) Si NO EXISTE:
+     - insert_one() crea documento nuevo con total_resenas=1
+       y promedio_calificacion = calificacion
+
+  f) Responde con JSON: {"mensaje": "...", "estado": "ok"} y codigo 201
+
+  PASO 7: PHP MUESTRA RESULTADO AL USUARIO
+  PHP recibe la respuesta de cURL y muestra el mensaje de exito
+  en la pagina web: "Reseña registrada correctamente. Se enviaron
+  datos a la API de analitica."
+
+  PASO 8: CONSULTA DE ESTADISTICAS
+  Cuando el usuario visita estadisticas.php:
+  - PHP hace GET a /api/estadisticas
+  - Flask consulta MongoDB y devuelve los datos calculados
+  - PHP muestra los datos en formato de tarjetas
+
+  Este flujo demuestra la INTEGRACION entre los dos sistemas:
+  la aplicacion PHP es independiente de la API Flask, y la API
+  Flask es independiente de la aplicacion PHP. Se comunican
+  mediante HTTP y JSON, que son estandares universales.
+
+
+=====================================================================
+8. DOCKER Y DESPLIEGUE EN RENDER
+=====================================================================
+
+8.1. ¿QUE ES DOCKER?
+
+  Docker es una plataforma que permite "empaquetar" una aplicacion
+  con todas sus dependencias en un CONTENEDOR. Un contenedor es
+  como una maquina virtual ligera que incluye el sistema operativo,
+  las bibliotecas, y la aplicacion.
+
+  VENTAJAS DE DOCKER:
+  - "En mi maquina funciona" deja de ser un problema
+  - El mismo contenedor funciona en desarrollo y produccion
+  - Facil de desplegar: solo necesitas el Dockerfile
+  - Aislamiento: cada servicio tiene sus propias dependencias
+
+8.2. DOCKERFILE DE PHP (app_php/Dockerfile)
+
+  FROM php:8.2-apache
+  - Imagen base: PHP 8.2 con Apache preinstalado
+
+  RUN apt-get update && apt-get install -y libpq-dev
+  - Instala las bibliotecas de desarrollo de PostgreSQL (libpq)
+  - Sin esto, la extension pdo_pgsql no se puede compilar
+
+  RUN docker-php-ext-install pdo_pgsql
+  - Compila e instala la extension PDO para PostgreSQL
+
+  COPY . /var/www/html/
+  - Copia los archivos PHP al directorio publico de Apache
+
+  EXPOSE 80
+  - Declara que el contenedor escucha en el puerto 80
+
+8.3. DOCKERFILE DE FLASK (app_flask/Dockerfile)
+
+  FROM python:3.11-slim
+  - Imagen base: Python 3.11 version "slim" (ligera, sin cosas innecesarias)
+
+  WORKDIR /app
+  - Establece el directorio de trabajo dentro del contenedor
+
+  COPY requirements.txt .
+  - Copia solo requirements.txt primero (para aprovechar cache Docker)
+
+  RUN pip install --no-cache-dir -r requirements.txt
+  - Instala dependencias. Al copiar requirements.txt antes que el
+    codigo, Docker puede usar cache si las dependencias no cambiaron.
+
+  COPY . .
+  - Copia el resto del codigo (app.py)
+
+  CMD gunicorn app:aplicacion --bind 0.0.0.0:${PORT:-10000}
+  - Comando de inicio. ${PORT:-10000} usa la variable PORT si existe,
+    o 10000 como valor por defecto.
+
+8.4. DOCKER-COMPOSE (docker-compose.yml)
+
+  Solo para DESARROLLO LOCAL. Define 3 servicios:
+
+  1. postgres: base de datos PostgreSQL con script SQL ejecutado
+     automaticamente al iniciar (gracias al volumen montado en
+     /docker-entrypoint-initdb.d/)
+
+  2. php: construye desde app_php/Dockerfile, expone puerto 3000
+
+  3. flask: construye desde app_flask/Dockerfile, expone puerto 5000
+
+  Comando para usar: docker compose up -d
+
+8.5. DESPLIEGUE EN RENDER
+
+  Render es una plataforma cloud que soporta despliegue desde
+  repositorios Git. Al detectar un Dockerfile, construye la imagen
+  y la ejecuta automaticamente.
+
+  Servicios creados en Render:
+  1. videojuegos-db: PostgreSQL (Render lo administra)
+  2. resenas-php: Web Service con Docker, Root Directory = app_php
+  3. resenas-flask: Web Service con Docker, Root Directory = app_flask
+
+  Variables de entorno configuradas en Render:
+  - PHP: DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, API_FLASK_URL
+  - Flask: MONGO_URI
+
+  Los servicios gratuitos de Render se "duermen" tras 15 minutos
+  de inactividad. La primera peticion tarda 30-60s en despertar.
+
+
+=====================================================================
+9. PRUEBAS AUTOMATIZADAS (SELENIUM)
+=====================================================================
+
+9.1. ¿QUE ES SELENIUM?
+
+  Selenium WebDriver es una herramienta que controla un navegador
+  web real desde codigo. Simula las acciones de un usuario: hace
+  clic, escribe en campos, selecciona opciones, navega entre paginas.
+
+  VENTAJAS:
+  - Prueba la aplicacion como lo haria un usuario real
+  - Ejecuta JavaScript (a diferencia de solo peticiones HTTP)
+  - Verifica que los elementos VISUALES aparecen correctamente
+
+9.2. LAS 4 PRUEBAS AUTOMATIZADAS
+
+  Prueba 1 - Registro de Videojuego:
+  - Navega a registrar_videojuego.php
+  - Llena todos los campos con datos de prueba (Hollow Knight)
+  - Hace clic en el boton de registro
+  - Verifica que aparezca el mensaje "registrado correctamente"
+
+  Prueba 2 - Registro de Reseña:
+  - Navega a registrar_resena.php
+  - Selecciona el primer videojuego disponible
+  - Llena nombre de usuario (GamerPro99), calificacion (5 estrellas)
+  - Hace clic en registrar
+  - Verifica el mensaje de exito
+
+  Prueba 3 - Consulta de Catalogo:
+  - Navega a catalogo.php
+  - Verifica que el titulo "Catalogo de Videojuegos" este presente
+  - Cuenta las tarjetas de videojuegos encontradas
+  - Muestra el nombre del primer juego
+
+  Prueba 4 - Consulta de Estadisticas:
+  - Navega a estadisticas.php
+  - Verifica que el titulo "Estadisticas y Analitica" este presente
+  - Verifica que la pagina cargue (con o sin datos de la API)
+
+9.3. RESULTADOS OBTENIDOS
+
+  De las 4 pruebas, 3 pasaron exitosamente. La prueba 1 fallo
+  inicialmente porque el boton de registro estaba cubierto por
+  la tabla de videojuegos registrados. Se soluciono agregando
+  un scroll hasta el boton antes de hacer clic:
+  navegador.execute_script("arguments[0].scrollIntoView(true);", boton)
+
+
+=====================================================================
+10. PRUEBAS DE CARGA (LOCUST)
+=====================================================================
+
+10.1. ¿QUE ES LOCUST?
+
+  Locust es una herramienta de pruebas de carga escrita en Python.
+  Simula multiples usuarios concurrentes realizando acciones en
+  la aplicacion para medir su rendimiento bajo carga.
+
+  CONCEPTOS CLAVE:
+  - Usuario virtual: simula un usuario real
+  - Tarea (@task): accion que realiza el usuario (consultar, registrar)
+  - Peso (weight): frecuencia relativa de cada tarea
+  - Tiempo de respuesta: cuanto tarda el servidor en responder
+  - Throughput (RPS): peticiones por segundo que soporta el sistema
+  - Percentil: el 95% de las peticiones fueron mas rapidas que X ms
+
+10.2. CONFIGURACION DE LA PRUEBA
+
+  - Usuarios concurrentes: 20
+  - Tasa de entrada (spawn rate): 5 usuarios/segundo
+  - Duracion: 2 minutos 11 segundos
+  - Host objetivo: https://resenas-php.onrender.com
+  - Tareas simuladas:
+    - consultar_catalogo (peso 3, 50% del trafico)
+    - registrar_resena (peso 1, 16.7%)
+    - registrar_videojuego (peso 1, 16.7%)
+    - consultar_estadisticas (peso 1, 16.7%)
+
+10.3. RESULTADOS OBTENIDOS
+
+  Metricas generales:
+  - Total de peticiones: 517
+  - Tiempo promedio: 1819 ms
+  - Mediana: 860 ms
+  - Throughput: 3.94 req/s
+  - Errores: 0%
+
+  Por endpoint:
+  - GET /catalogo: 248 peticiones, promedio 3066ms (el mas pesado)
+  - GET /estadisticas: 92 peticiones, promedio 353ms (el mas rapido)
+  - POST /registrar_resena: 93 peticiones, promedio 904ms
+  - POST /registrar_videojuego: 84 peticiones, promedio 757ms
+
+  Analisis:
+  - El catalogo es la operacion mas pesada porque carga HTML con
+    estilos Bootstrap, imagenes, y hace consultas JOIN en PostgreSQL
+  - Las estadisticas son rapidas porque solo leen de MongoDB
+  - Los POST son intermedios porque incluyen validaciones e insercion
+  - 0% de errores indica que el sistema es estable bajo carga
+  - Los tiempos de respuesta altos en el percentil 95 se deben
+    a la latencia de red hacia las bases de datos y a las
+    limitaciones del plan gratuito de Render
+
+
+=====================================================================
+11. PRUEBAS DE INTEGRACION (POSTMAN)
+=====================================================================
+
+11.1. ¿QUE ES POSTMAN?
+
+  Postman es una herramienta para probar APIs. Permite enviar
+  peticiones HTTP (GET, POST, PUT, DELETE) y verificar las
+  respuestas automaticamente con scripts de prueba en JavaScript.
+
+11.2. LAS 9 PRUEBAS DE INTEGRACION
+
+  Prueba 1: Verificar que la API Flask esta funcionando
+  Prueba 2: PHP registra un videojuego en PostgreSQL
+  Prueba 3: PHP registra una reseña y notifica a Flask → MongoDB
+  Prueba 4: El catalogo muestra videojuegos con estrellas
+  Prueba 5: La API Flask recibe datos directamente por POST
+  Prueba 6: La API Flask devuelve estadisticas
+  Prueba 7: La API Flask devuelve el ranking de mejores juegos
+  Prueba 8: Validaciones: formulario vacio muestra errores
+  Prueba 9: La API rechaza datos invalidos (JSON vacio)
+
+11.3. RESULTADOS
+
+  24 de 24 pruebas pasaron correctamente (100%).
+  Tiempo total: 1.98 segundos para las 9 peticiones.
+  Sin errores de conexion, sin timeouts, sin fallos de validacion.
+
+
+=====================================================================
+12. VARIABLES DE ENTORNO Y CONFIGURACION
+=====================================================================
+
+12.1. VARIABLES DEL SERVICIO PHP (Render)
+
+  DB_HOST = dpg-d921uh1kh4rs73c446pg-a
+  Proposito: Direccion del servidor PostgreSQL en Render.
+  Formato: dpg-XXXXXXXXXXXX.oregon-postgres.render.com
+  La proporciona Render automaticamente al crear la BD.
+
+  DB_PORT = 5432
+  Proposito: Puerto de conexion a PostgreSQL. 5432 es el puerto
+  estandar de PostgreSQL. Rara vez cambia.
+
+  DB_NAME = videojuegos_db_a5o5
+  Proposito: Nombre de la base de datos. Render agrega un sufijo
+  aleatorio (_a5o5) para evitar conflictos entre usuarios.
+
+  DB_USER = videojuegos_db_a5o5_user
+  Proposito: Usuario con permisos de lectura/escritura en la BD.
+
+  DB_PASSWORD = QKtxvtMpHAVFLd5tSjMD8BpVyGtPbA2M
+  Proposito: Contraseña del usuario de BD. Se genera aleatoriamente
+  y es unica por cada BD. Se mantiene secreta (no se sube a GitHub).
+
+  API_FLASK_URL = https://resenas-flask.onrender.com
+  Proposito: URL base del servicio Flask. PHP usa esta variable
+  para construir las URLs de los endpoints (/api/videojuegos,
+  /api/estadisticas, /api/mejores-videojuegos).
+
+12.2. VARIABLES DEL SERVICIO FLASK (Render)
+
+  MONGO_URI = mongodb+srv://brayan_user:OowrgD7GQvC2j4c1@cluster0.trhpoq2.mongodb.net/?retryWrites=true&w=majority
+  Proposito: URI de conexion a MongoDB Atlas. Contiene el protocolo
+  (mongodb+srv), usuario, contraseña, direccion del cluster, y
+  parametros adicionales.
+
+  Explicacion de cada parte de la URI:
+  - mongodb+srv://: protocolo con resolucion DNS automatica
+  - brayan_user: nombre de usuario creado en MongoDB Atlas
+  - OowrgD7GQvC2j4c1: contraseña del usuario
+  - cluster0.trhpoq2.mongodb.net: direccion del cluster
+  - retryWrites=true: reintenta escrituras fallidas
+  - w=majority: confirma escritura en la mayoria de nodos
+
+12.3. DONDE SE USAN LAS VARIABLES
+
+  En PHP, las variables se leen con getenv():
+    $host_bd = getenv('DB_HOST') ?: 'localhost';
+
+  El operador ?: (ternario simplificado) significa:
+  "Si getenv('DB_HOST') tiene un valor, usalo. Si no, usa 'localhost'".
+  Esto permite que el codigo funcione en desarrollo local (sin
+  variables de entorno) y en Render (con variables).
+
+  En Flask, las variables se leen con os.environ.get():
+    uri_mongo = os.environ.get('MONGO_URI', 'mongodb://localhost:27017/')
+
+
+=====================================================================
+13. PREGUNTAS FRECUENTES QUE PUEDE HACER EL PROFESOR
+=====================================================================
+
+PREGUNTA 1: ¿Por que usaste dos bases de datos diferentes?
+RESPUESTA: Porque cada una es mejor para su proposito. PostgreSQL
+es una base de datos relacional ideal para datos estructurados con
+relaciones entre tablas (un videojuego tiene muchas reseñas).
+MongoDB es una base de datos NoSQL ideal para datos de analitica
+que se actualizan frecuentemente y no necesitan un esquema rigido.
+Ademas, separar la aplicacion principal de la analitica permite
+que si una BD falla, la otra siga funcionando.
+
+PREGUNTA 2: ¿Como se comunican PHP y Flask?
+RESPUESTA: Mediante una API REST sobre HTTP. PHP actua como cliente
+HTTP y envia peticiones a los endpoints de Flask usando cURL. Los
+datos se intercambian en formato JSON. Flask responde con codigos
+HTTP estandar (200, 201, 400) y datos en JSON. Esta comunicacion
+es independiente del lenguaje: PHP no sabe que Flask esta en Python,
+solo conoce las URLs y el formato de los datos.
+
+PREGUNTA 3: ¿Que es PDO y por que lo usaste?
+RESPUESTA: PDO (PHP Data Objects) es una capa de abstraccion de
+base de datos incluida en PHP. Permite conectarse a diferentes
+motores de BD con la misma sintaxis. Su principal ventaja de
+seguridad son las consultas preparadas (prepare + bindParam) que
+evitan la inyeccion SQL al separar la estructura de la consulta
+de los datos del usuario.
+
+PREGUNTA 4: ¿Como evitaste la inyeccion SQL?
+RESPUESTA: Usando consultas preparadas de PDO. Los valores del
+usuario nunca se concatenan directamente en la consulta SQL. En su
+lugar, se usan marcadores (:nombre, :genero) que PDO reemplaza de
+forma segura. El motor de BD recibe la estructura y los datos por
+separado, haciendo imposible que un atacante modifique la estructura
+de la consulta.
+
+PREGUNTA 5: ¿Como implementaste las validaciones?
+RESPUESTA: Las validaciones se hacen del lado del servidor en PHP.
+Por cada campo se verifica: que no este vacio (empty), que cumpla
+longitudes minimas y maximas (strlen), que los numeros esten en
+rango, y que las fechas tengan formato valido (checkdate). Los
+errores se almacenan en un array asociativo $errores y se muestran
+junto a cada campo con clases CSS de Bootstrap (is-invalid).
+
+PREGUNTA 6: ¿Por que desplegaste en Render y no en otro servicio?
+RESPUESTA: Render ofrece un plan gratuito que incluye PostgreSQL
+administrado, soporte para Docker, despliegue automatico desde
+GitHub, certificados SSL, y variables de entorno. Para un proyecto
+academico, el plan gratuito es suficiente. Otros servicios como
+Heroku eliminaron su plan gratuito, y Railway tiene creditos
+limitados. Render permite tener ambos servicios (PHP y Flask) en
+el mismo ecosistema.
+
+PREGUNTA 7: ¿Que son las variables de entorno?
+RESPUESTA: Son valores de configuracion que se definen fuera del
+codigo, en el sistema operativo o en la plataforma cloud. Se usan
+para datos sensibles (contraseñas, URLs) que no deben estar escritos
+en el codigo fuente. En desarrollo local se usan valores por defecto,
+en produccion Render inyecta los valores reales. Esto permite que
+el mismo codigo funcione en cualquier entorno sin modificaciones.
+
+PREGUNTA 8: ¿Como funciona el Dockerfile?
+RESPUESTA: Un Dockerfile es un archivo de instrucciones que le dice
+a Docker como construir una imagen. Cada instruccion (FROM, RUN,
+COPY, CMD) crea una "capa" en la imagen. Las capas se cachean: si
+una instruccion no cambia, Docker reusa la capa anterior en lugar
+de reconstruirla. Esto acelera los builds. La ultima instruccion
+(CMD) define el comando que se ejecuta cuando el contenedor inicia.
+
+PREGUNTA 9: ¿Como se relacionan las tablas en PostgreSQL?
+RESPUESTA: La tabla resenas tiene una llave foranea (FOREIGN KEY)
+que referencia la tabla videojuegos. Esto crea una relacion de
+"uno a muchos": un videojuego puede tener muchas reseñas, pero cada
+reseña pertenece a un solo videojuego. La restriccion ON DELETE
+CASCADE asegura que si se elimina un videojuego, sus reseñas tambien
+se eliminen, manteniendo la integridad de los datos.
+
+PREGUNTA 10: ¿Que hace el endpoint POST /api/videojuegos?
+RESPUESTA: Recibe datos de una reseña desde PHP (videojuego_id,
+calificacion, nombre) y actualiza las estadisticas en MongoDB.
+Si es la primera reseña de ese juego, crea un documento nuevo con
+total_resenas=1. Si ya existia, incrementa el contador, suma la
+calificacion al acumulado, y recalcula el promedio con la formula:
+promedio = suma_calificaciones / total_resenas. Responde 201 Created.
+
+PREGUNTA 11: ¿Como documentaste las pruebas?
+RESPUESTA: Las pruebas de Selenium estan documentadas en el propio
+archivo pruebas_selenium.py con comentarios que explican cada paso.
+Las pruebas de Locust generan un reporte HTML con graficos y tablas
+que muestran tiempos de respuesta, throughput y errores. Las pruebas
+de Postman incluyen scripts de test en JavaScript que validan
+automaticamente los codigos HTTP, la estructura JSON y el contenido
+de las respuestas.
+
+PREGUNTA 12: ¿Que aprendiste con este proyecto?
+RESPUESTA: Aprendi a diseñar e implementar una arquitectura de
+microservicios simple con dos aplicaciones independientes que se
+comunican via API REST. Aprendi a trabajar con bases de datos SQL
+y NoSQL simultaneamente, a contenerizar aplicaciones con Docker,
+a desplegar en la nube con Render, y a realizar pruebas automatizadas
+con Selenium, pruebas de carga con Locust, y pruebas de integracion
+con Postman.
+
+
+=====================================================================
+14. GLOSARIO DE TERMINOS TECNICOS
+=====================================================================
+
+  API REST: Interfaz de programacion que permite que dos aplicaciones
+  se comuniquen usando HTTP y URLs (endpoints). REST significa que
+  cada peticion es independiente (no guarda estado).
+
+  API: Application Programming Interface. Conjunto de reglas y
+  protocolos para que diferentes programas se comuniquen entre si.
+
+  APACHE: Servidor web de codigo abierto que ejecuta archivos PHP
+  y sirve paginas HTML a los navegadores.
+
+  ATLAS (MongoDB): Servicio cloud de MongoDB que administra clusters
+  de base de datos sin necesidad de instalar nada.
+
+  BOOTSTRAP: Framework CSS que proporciona estilos predefinidos,
+  sistema de columnas (grid), botones, formularios, etc.
+
+  CDN (Content Delivery Network): Red de servidores que distribuyen
+  archivos estaticos (CSS, JS) globalmente para cargar mas rapido.
+
+  CHECK (restriccion SQL): Regla que valida los datos antes de
+  guardarlos en la base de datos.
+
+  CONTENEDOR (Docker): Paquete ejecutable que incluye todo lo
+  necesario para ejecutar una aplicacion: codigo, runtime,
+  bibliotecas, configuracion.
+
+  cURL: Herramienta de linea de comandos y biblioteca para hacer
+  peticiones HTTP desde codigo. Soporta todos los metodos y headers.
+
+  DDL (Data Definition Language): Comandos SQL para definir
+  estructuras: CREATE, ALTER, DROP.
+
+  DML (Data Manipulation Language): Comandos SQL para manipular
+  datos: INSERT, SELECT, UPDATE, DELETE.
+
+  DSN (Data Source Name): Cadena de conexion que especifica el
+  motor de BD, host, puerto y nombre de la base de datos.
+
+  ENDPOINT: URL especifica de una API que representa un recurso
+  o funcionalidad. Ejemplo: /api/videojuegos.
+
+  FLASK: Framework web minimalista para Python. Permite crear APIs
+  y aplicaciones web con pocas lineas de codigo.
+
+  FOREIGN KEY: Campo en una tabla que referencia la clave primaria
+  de otra tabla, creando una relacion entre ambas.
+
+  GUNICORN: Servidor WSGI para aplicaciones Python. Se usa en
+  produccion porque maneja multiples peticiones simultaneas.
+
+  HTTP (HyperText Transfer Protocol): Protocolo de comunicacion
+  usado en la web. Define metodos como GET (consultar), POST (crear),
+  PUT (actualizar), DELETE (eliminar).
+
+  IMAGEN (Docker): Plantilla de solo lectura con instrucciones para
+  crear un contenedor. Se construye a partir de un Dockerfile.
+
+  JSON (JavaScript Object Notation): Formato de texto ligero para
+  intercambiar datos. Facil de leer para humanos y de procesar
+  para maquinas.
+
+  LOCUST: Herramienta de pruebas de carga escrita en Python. Simula
+  usuarios concurrentes para medir el rendimiento.
+
+  METODO HTTP: Tipo de peticion (GET, POST, PUT, DELETE). Define
+  la accion a realizar sobre un recurso.
+
+  MONGODB: Base de datos NoSQL que almacena datos en documentos
+  JSON flexibles en lugar de tablas con filas y columnas.
+
+  PIPELINE (MongoDB): Secuencia de etapas de procesamiento de datos
+  que se ejecutan en orden para transformar documentos.
+
+  POSTGRESQL: Sistema de gestion de bases de datos relacional (SQL)
+  de codigo abierto, conocido por su fiabilidad y caracteristicas.
+
+  PRIMARY KEY: Campo o conjunto de campos que identifica de forma
+  unica cada fila en una tabla.
+
+  PyMONGO: Biblioteca de Python que permite conectarse y operar
+  con MongoDB desde codigo Python.
+
+  RENDER: Plataforma cloud que permite desplegar aplicaciones web,
+  APIs y bases de datos desde repositorios Git.
+
+  SELENIUM: Herramienta que automatiza navegadores web. Permite
+  simular acciones de usuarios para probar aplicaciones web.
+
+  SERIAL: Tipo de dato en PostgreSQL que genera automaticamente
+  numeros enteros secuenciales (autoincrementales).
+
+  SQL (Structured Query Language): Lenguaje estandar para gestionar
+  bases de datos relacionales.
+
+  URI (Uniform Resource Identifier): Cadena que identifica un
+  recurso en internet. La URI de MongoDB incluye protocolo,
+  credenciales, direccion del servidor y opciones.
+
+  URL (Uniform Resource Locator): Direccion web completa que
+  incluye protocolo (https://), dominio y ruta.
+
+  WSGI (Web Server Gateway Interface): Estandar de Python que
+  define como los servidores web se comunican con las aplicaciones.
